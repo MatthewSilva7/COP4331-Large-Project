@@ -7,9 +7,15 @@ const router = express.Router();
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log("🔍 Searching for email:", email);
+    
     const user = await User.findOne({ email });
+    console.log("👤 User found in DB:", user);    // LOG 2
 
-    if (!user) return res.status(400).json({ message: "User does not exist" });
+    if (!user) {
+      console.log("❌ No user found with that email.");
+      return res.status(400).json({ message: "User does not exist" });
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
