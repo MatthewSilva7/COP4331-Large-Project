@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
@@ -7,7 +8,8 @@ const router = express.Router();
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email });
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
 
     if (!user) return res.status(400).json({ message: "User does not exist" });
 
@@ -30,10 +32,47 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// REGISTER ROUTE (Skeleton for your team)
 router.post('/register', async (req, res) => {
-  // Your team will add bcrypt.hash and user.save() logic here
-  res.json({ message: "Register endpoint reached" });
+  try {
+    const { firstName, lastName, email, password } = req.body;
+
+    if (!firstName || !lastName || !email || !password) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    const existing = await User.findOne({ email: String(email).trim().toLowerCase() });
+    if (existing) {
+      return res.status(400).json({ message: 'User already exists' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+
+    const user = await User.create({
+      firstName: String(firstName).trim(),
+      lastName: String(lastName).trim(),
+      email: String(email).trim().toLowerCase(),
+      password: hashedPassword,
+      emailVerified: false,
+      verificationToken
+    });
+
+    res.status(201).json({
+      message: 'Registration successful',
+      verificationToken,
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email
+      }
+    });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(400).json({ message: 'User already exists' });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
 });
 
 module.exports = router;
