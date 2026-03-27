@@ -9,4 +9,4 @@ const UserSchema = new mongoose.Schema({
   verificationToken: { type: String } // To be used for the email link
 });
 
-module.exports = mongoose.model('User', UserSchema);
+module.exports = mongoose.model('users', UserSchema);
