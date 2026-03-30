@@ -1,13 +1,14 @@
-const crypto = require('crypto'); // Built into Node to create the random verification token
-const nodemailer = require('nodemailer');
-require('dotenv').config();
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto'); // Built-in Node module
+const nodemailer = require('nodemailer');
 const User = require('../models/User');
+require('dotenv').config();
+
 const router = express.Router();
 
-// Setup the email transporter using .env credentials
+// 1. Setup the email transporter using .env credentials
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -16,63 +17,89 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-// LOGIN ROUTE
+// 2. LOGIN ROUTE
 router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
-
-    if (!user) return res.status(400).json({ message: "User does not exist" });
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
-
-    // Check if email is verified
-    if (!user.emailVerified) {
-      return res.status(403).json({ message: "Please verify your email first." });
-    }
-
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    
-    res.json({
-      token,
-      user: { id: user._id, firstName: user.firstName, lastName: user.lastName, email: user.email }
-    });
-  } catch (err) {
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// REGISTER ROUTE
-router.post('/register', async (req, res) => {
     try {
-        const { firstName, lastName, email, password } = req.body;
+        const { email, password } = req.body;
+        const normalizedEmail = String(email || '').trim().toLowerCase();
+        const user = await User.findOne({ email: normalizedEmail });
 
-        // Teammate - Add user existence check & password hashing here
+        if (!user) {
+            return res.status(400).json({ message: "User does not exist" });
+        }
 
-        // EMAIL VERIFICATION LOGIC
-        const verificationToken = crypto.randomBytes(20).toString('hex');
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
 
-        // Teammate - Include 'verificationToken' & 'emailVerified: false' in new User() object.
+        // Check if email is verified (Rubric Requirement)
+        if (!user.emailVerified) {
+            return res.status(403).json({ message: "Please verify your email first." });
+        }
 
-        // Teammate - await newUser.save();
-
-        const verificationUrl = `${process.env.BASE_URL}/api/auth/verify/${verificationToken}`;
-
-        await transporter.sendMail({
-            to: email,
-            subject: 'Verify your Study Buddy Account',
-            html: `Click <a href="${verificationUrl}">here</a> to verify your account.`
+        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        
+        res.json({
+            token,
+            user: { id: user._id, firstName: user.firstName, lastName: user.lastName, email: user.email }
         });
-
-        res.status(201).json({ message: "Registration successful! Please verify your email." });
-
     } catch (err) {
         res.status(500).json({ message: "Server error" });
     }
 });
 
-// VERIFY ROUTE
+// 3. UNIFIED REGISTER ROUTE (Combines Hashing + Email Sending)
+router.post('/register', async (req, res) => {
+    try {
+        const { firstName, lastName, email, password } = req.body;
+
+        // Basic Validation
+        if (!firstName || !lastName || !email || !password) {
+            return res.status(400).json({ message: 'Missing required fields' });
+        }
+
+        // Check for existing user
+        const normalizedEmail = String(email).trim().toLowerCase();
+        const existing = await User.findOne({ email: normalizedEmail });
+        if (existing) {
+            return res.status(400).json({ message: 'User already exists' });
+        }
+
+        // Hash Password & Generate Verification Token
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const verificationToken = crypto.randomBytes(32).toString('hex');
+
+        // Create User in DB
+        const user = await User.create({
+            firstName: String(firstName).trim(),
+            lastName: String(lastName).trim(),
+            email: normalizedEmail,
+            password: hashedPassword,
+            emailVerified: false,
+            verificationToken
+        });
+
+        // Send the Verification Email
+        const verificationUrl = `${process.env.BASE_URL}/api/auth/verify/${verificationToken}`;
+        await transporter.sendMail({
+            to: email,
+            subject: 'Verify your Study Buddy Account',
+            html: `<h3>Welcome to Study Buddy Finder!</h3>
+                   <p>Click the link below to verify your account:</p>
+                   <a href="${verificationUrl}">${verificationUrl}</a>`
+        });
+
+        res.status(201).json({
+            message: 'Registration successful! Please check your email to verify.',
+            user: { id: user._id, email: user.email }
+        });
+
+    } catch (err) {
+        console.error("Registration Error:", err);
+        res.status(500).json({ message: 'Server error during registration' });
+    }
+});
+
+// 4. VERIFY ROUTE
 router.get('/verify/:token', async (req, res) => {
     try {
         const user = await User.findOne({ verificationToken: req.params.token });
@@ -85,7 +112,7 @@ router.get('/verify/:token', async (req, res) => {
         user.verificationToken = undefined; // Clear token after use
         await user.save();
 
-        res.send('<h1>Email Verified!</h1><p>You can now log in.</p>');
+        res.send('<h1>Email Verified!</h1><p>Your account is now active. You can close this window and log in.</p>');
     } catch (err) {
         res.status(500).send("Server error during verification");
     }
