@@ -21,8 +21,30 @@ export const loginUser = async (email: string, password: string): Promise<LoginR
 
   if (!response.ok) {
     const errorData = await response.json();
+
+    // Check if the server sent a specific message about verification
+    if (response.status === 403 && errorData.message.includes("verify")) {
+        throw new Error("VERIFICATION_REQUIRED");
+    }
+
     throw new Error(errorData.message || "Login failed");
   }
 
   return response.json();
+};
+
+export const verifyEmail = async (token: string): Promise<{ message: string }> => {
+    const API_URL = `https://largeproj.msilvacop4331.site/api/auth/verify/${token}`;
+
+    const response = await fetch(API_URL, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Verification failed");
+    }
+
+    return response.json();
 };
