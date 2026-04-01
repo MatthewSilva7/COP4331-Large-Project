@@ -1,3 +1,4 @@
+import { loginUser, registerUser } from "../services/authService";
 import React, { useState } from "react";
 import { motion } from "motion/react";
 
