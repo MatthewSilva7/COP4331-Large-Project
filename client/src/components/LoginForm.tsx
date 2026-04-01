@@ -10,10 +10,29 @@ export default function LoginForm({ onToggle, onForgotPassword }: LoginFormProps
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Login attempt:", { email, password });
-    alert("Login functionality would go here! (Firebase was declined, so this is a demo).");
+    setError(""); // Clear old errors
+    
+    try {
+      const data = await loginUser(email, password);
+      
+      // Save the token to local storage
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+  
+      // For now, just alert success. Later, use navigate('/dashboard')
+      alert(`Welcome back, ${data.user.firstName}!`);
+      
+    } catch (err: any) {
+      if (err.message === "VERIFICATION_REQUIRED") {
+        setError("Please check your email to verify your account before logging in.");
+      } else {
+        setError(err.message);
+      }
+    }
   };
 
   return (
