@@ -10,10 +10,16 @@ const router = express.Router();
 
 // 1. Setup the email transporter using .env credentials
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false, // Use TLS
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
+    },
+    // This line forces Node to use IPv4 instead of IPv6
+    dnsLookup: (hostname, options, callback) => {
+        require('dns').lookup(hostname, { family: 4 }, callback);
     },
 });
 
