@@ -48,3 +48,21 @@ export const verifyEmail = async (token: string): Promise<{ message: string }> =
 
     return response.json();
 };
+
+export const registerUser = async (firstName: string, lastName: string, email: string, password: string): Promise<{ message: string }> => {
+  const API_URL = "https://largeproj.msilvacop4331.site/api/auth/register";
+
+  const response = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ firstName, lastName, email, password }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || "Registration failed");
+  }
+
+  return data;
+};
