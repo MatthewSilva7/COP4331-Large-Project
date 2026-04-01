@@ -11,10 +11,22 @@ export default function RegisterForm({ onToggle }: RegisterFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Register attempt:", { firstName, lastName, email, password });
-    alert("Registration functionality would go here! (Firebase was declined, so this is a demo).");
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const response = await registerUser(firstName, lastName, email, password);
+      setMessage(response.message); // "Registration successful! Please check your email..."
+    } catch (err: any) {
+      setMessage(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
