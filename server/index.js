@@ -4,6 +4,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const authRoutes = require('./routes/auth');
+const sessionRoutes = require('./routes/sessions');
 
 const app = express();
 
@@ -13,6 +14,7 @@ app.use(express.json()); // Allows us to read JSON from the frontend
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/sessions', sessionRoutes);
 
 // Database Connection
 mongoose.connect(process.env.MONGO_URI)
