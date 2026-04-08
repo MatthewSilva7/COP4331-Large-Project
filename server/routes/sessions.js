@@ -2,53 +2,40 @@ const express = require('express');
 const router = express.Router();
 const Session = require('../models/Session');
 
-// GET: Fetch sessions and simple stats for a specific user dashboard
 router.get('/user/:userId', async (req, res) => {
     try {
-        const { userId } = req.params;
-        const sessions = await Session.find({ userId })
-            .sort({ createdAt: -1 })
-            .lean();
-
-        res.json({
-            stats: {
-                sessionsHosted: sessions.length,
-                sessionsJoined: 0,
-                studyStreak: 0
-            },
-            sessions
-        });
+        const sessions = await Session.find({ userId: req.params.userId }).sort({ createdAt: -1 });
+        res.json({ sessions: sessions });
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: "Server error: Could not load sessions" });
+        res.status(500).json({ message: "Could not load hosted sessions" });
     }
 });
 
-// POST: Host a new study group (The "Submit" button on the popup)
+router.get('/available/:userId', async (req, res) => {
+    try {
+        const sessions = await Session.find({ userId: { $ne: req.params.userId } }).sort({ createdAt: -1 });
+        res.json({ sessions: sessions });
+    } catch (err) {
+        res.status(500).json({ message: "Could not load available sessions" });
+    }
+});
+
 router.post('/create', async (req, res) => {
     try {
         const { subject, location, time, hostName, userId } = req.body;
-
-        // Create a new session instance using the Session Model
-        const newSession = new Session({
-            subject,
-            location,
-            time,
-            hostName,
-            userId // This is the ID of the user currently logged in
-        });
-
-        // Save to MongoDB
+        const newSession = new Session({ subject, location, time, hostName, userId });
         const savedSession = await newSession.save();
-
-        res.status(201).json({
-            message: "Study session created!",
-            session: savedSession
-        });
-
+        res.status(201).json({ message: "Study session created!", session: savedSession });
     } catch (err) {
-        console.error(err);
         res.status(500).json({ message: "Server error: Could not create session" });
+    }
+});
+
+router.post('/join', async (req, res) => {
+    try {
+        res.status(200).json({ message: "Success! (Not saved to DB yet)", session: {} });
+    } catch (err) {
+        res.status(500).json({ message: "Error joining session" });
     }
 });
 
