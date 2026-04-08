@@ -1,12 +1,9 @@
+import type { AuthUser } from "../types/auth";
+
 // Define what the server's response looks like for TypeScript
 interface LoginResponse {
   token: string;
-  user: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-  };
+  user: AuthUser;
 }
 
 export const loginUser = async (email: string, password: string): Promise<LoginResponse> => {
