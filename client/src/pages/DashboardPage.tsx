@@ -1,45 +1,114 @@
-import React from "react";
-
-interface DashboardUser {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-}
+import React, { useEffect, useState } from "react";
+import { createSession, getDashboardData } from "../services/authService";
+import type { AuthUser, DashboardData } from "../types/auth";
 
 interface DashboardPageProps {
-  user: DashboardUser;
+  user: AuthUser;
   onLogout: () => void;
 }
 
-const upcomingSessions = [
-  {
-    title: "Calculus Review",
-    time: "Today, 4:30 PM",
-    location: "Library Room B",
-    members: 5,
-  },
-  {
-    title: "Intro to Physics",
-    time: "Tomorrow, 1:00 PM",
-    location: "Engineering Hall",
-    members: 3,
-  },
-  {
-    title: "Database Systems",
-    time: "Friday, 11:00 AM",
-    location: "Online",
-    members: 8,
-  },
-];
-
-const quickStats = [
-  { label: "Sessions Joined", value: "12" },
-  { label: "Sessions Hosted", value: "4" },
-  { label: "Study Streak", value: "6 days" },
-];
-
 export default function DashboardPage({ user, onLogout }: DashboardPageProps) {
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [subject, setSubject] = useState("");
+  const [location, setLocation] = useState("");
+  const [time, setTime] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formMessage, setFormMessage] = useState("");
+  const [formError, setFormError] = useState("");
+
+  const loadDashboard = async (showLoading = true) => {
+    if (showLoading) {
+      setIsLoading(true);
+    }
+    setError("");
+
+    try {
+      const data = await getDashboardData(user.id);
+      setDashboardData(data);
+    } catch (err: any) {
+      setError(err.message || "Could not load dashboard data.");
+    } finally {
+      if (showLoading) {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const initializeDashboard = async () => {
+      setIsLoading(true);
+
+      try {
+        const data = await getDashboardData(user.id);
+        if (isMounted) {
+          setDashboardData(data);
+        }
+      } catch (err: any) {
+        if (isMounted) {
+          setError(err.message || "Could not load dashboard data.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    initializeDashboard();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user.id]);
+
+  const handleCreateSession = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setFormMessage("");
+    setFormError("");
+
+    try {
+      await createSession({
+        subject,
+        location,
+        time,
+        hostName: `${user.firstName} ${user.lastName}`,
+        userId: user.id,
+      });
+
+      setSubject("");
+      setLocation("");
+      setTime("");
+      setFormMessage("Session created successfully.");
+      await loadDashboard(false);
+    } catch (err: any) {
+      setFormError(err.message || "Could not create session.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const stats = [
+    {
+      label: "Sessions Joined",
+      value: String(dashboardData?.stats.sessionsJoined ?? 0),
+    },
+    {
+      label: "Sessions Hosted",
+      value: String(dashboardData?.stats.sessionsHosted ?? 0),
+    },
+    {
+      label: "Study Streak",
+      value: `${dashboardData?.stats.studyStreak ?? 0} days`,
+    },
+  ];
+
+  const sessions = dashboardData?.sessions ?? [];
+
   return (
     <main className="min-h-screen px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -53,8 +122,8 @@ export default function DashboardPage({ user, onLogout }: DashboardPageProps) {
                 Welcome back, {user.firstName}.
               </h1>
               <p className="mt-4 max-w-2xl text-base leading-7 text-[#4c4638] sm:text-lg">
-                Your dashboard is ready with upcoming study sessions, progress
-                snapshots, and a quick view of what to tackle next.
+                Track the sessions you host, keep an eye on your study rhythm,
+                and pick up right where you left off.
               </p>
 
               <div className="mt-8 flex flex-wrap gap-3">
@@ -116,8 +185,8 @@ export default function DashboardPage({ user, onLogout }: DashboardPageProps) {
               </div>
             </div>
 
-            <div className="mt-6 space-y-4">
-              {quickStats.map((stat) => (
+              <div className="mt-6 space-y-4">
+              {stats.map((stat) => (
                 <div
                   key={stat.label}
                   className="rounded-2xl border border-[#efe8da] bg-[#fcfaf4] p-4"
@@ -128,6 +197,93 @@ export default function DashboardPage({ user, onLogout }: DashboardPageProps) {
                   </p>
                 </div>
               ))}
+            </div>
+
+            <div className="mt-6 rounded-[1.5rem] border border-[#efe8da] bg-[#fcfaf4] p-5">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#7d765f]">
+                  Host
+                </p>
+                <h3 className="mt-2 font-serif text-2xl font-semibold text-[#201c15]">
+                  Create a study session
+                </h3>
+              </div>
+
+              <form className="mt-5 space-y-4" onSubmit={handleCreateSession}>
+                <div>
+                  <label
+                    htmlFor="session-subject"
+                    className="block text-sm font-medium text-[#3d372d]"
+                  >
+                    Subject
+                  </label>
+                  <input
+                    id="session-subject"
+                    type="text"
+                    required
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    className="mt-1 block w-full rounded-xl border border-[#ddd4c3] bg-white px-3 py-2 text-sm text-[#201c15] focus:border-[#5A5A40] focus:outline-none"
+                    placeholder="Calculus I"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="session-location"
+                    className="block text-sm font-medium text-[#3d372d]"
+                  >
+                    Location
+                  </label>
+                  <input
+                    id="session-location"
+                    type="text"
+                    required
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    className="mt-1 block w-full rounded-xl border border-[#ddd4c3] bg-white px-3 py-2 text-sm text-[#201c15] focus:border-[#5A5A40] focus:outline-none"
+                    placeholder="Library Room 204"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="session-time"
+                    className="block text-sm font-medium text-[#3d372d]"
+                  >
+                    Time
+                  </label>
+                  <input
+                    id="session-time"
+                    type="text"
+                    required
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    className="mt-1 block w-full rounded-xl border border-[#ddd4c3] bg-white px-3 py-2 text-sm text-[#201c15] focus:border-[#5A5A40] focus:outline-none"
+                    placeholder="Thursday, 6:00 PM"
+                  />
+                </div>
+
+                {formMessage ? (
+                  <div className="rounded-xl border border-[#d7e7d5] bg-[#eff8ee] px-3 py-2 text-sm text-[#315436]">
+                    {formMessage}
+                  </div>
+                ) : null}
+
+                {formError ? (
+                  <div className="rounded-xl border border-[#ebd2cc] bg-[#fff5f2] px-3 py-2 text-sm text-[#8a3d2f]">
+                    {formError}
+                  </div>
+                ) : null}
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full rounded-full bg-[#5A5A40] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#4a4a34] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isSubmitting ? "Creating session..." : "Host this session"}
+                </button>
+              </form>
             </div>
           </div>
 
@@ -149,31 +305,51 @@ export default function DashboardPage({ user, onLogout }: DashboardPageProps) {
               </button>
             </div>
 
-            <div className="mt-6 grid gap-4">
-              {upcomingSessions.map((session) => (
-                <article
-                  key={`${session.title}-${session.time}`}
-                  className="rounded-[1.5rem] border border-[#efe8da] bg-[linear-gradient(180deg,#fffdf8_0%,#f8f2e7_100%)] p-5"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <h3 className="text-xl font-semibold text-[#201c15]">
-                        {session.title}
-                      </h3>
-                      <p className="mt-2 text-sm text-[#5e584b]">
-                        {session.time}
-                      </p>
+            {isLoading ? (
+              <div className="mt-6 rounded-[1.5rem] border border-dashed border-[#d8cfbc] bg-[#fcfaf4] p-6 text-sm text-[#5f584a]">
+                Loading your dashboard...
+              </div>
+            ) : error ? (
+              <div className="mt-6 rounded-[1.5rem] border border-[#ebd2cc] bg-[#fff5f2] p-6 text-sm text-[#8a3d2f]">
+                {error}
+              </div>
+            ) : sessions.length === 0 ? (
+              <div className="mt-6 rounded-[1.5rem] border border-dashed border-[#d8cfbc] bg-[#fcfaf4] p-6">
+                <h3 className="text-xl font-semibold text-[#201c15]">
+                  No sessions yet
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-[#5f584a]">
+                  New accounts start with a clean dashboard. Once you host a study
+                  session, it will show up here automatically.
+                </p>
+              </div>
+            ) : (
+              <div className="mt-6 grid gap-4">
+                {sessions.map((session) => (
+                  <article
+                    key={session._id}
+                    className="rounded-[1.5rem] border border-[#efe8da] bg-[linear-gradient(180deg,#fffdf8_0%,#f8f2e7_100%)] p-5"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-xl font-semibold text-[#201c15]">
+                          {session.subject}
+                        </h3>
+                        <p className="mt-2 text-sm text-[#5e584b]">
+                          {session.time}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#5a5a40]">
+                        Hosted by {session.hostName}
+                      </span>
                     </div>
-                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#5a5a40]">
-                      {session.members} members
-                    </span>
-                  </div>
-                  <p className="mt-4 text-sm text-[#4c4638]">
-                    Meet at {session.location}
-                  </p>
-                </article>
-              ))}
-            </div>
+                    <p className="mt-4 text-sm text-[#4c4638]">
+                      Meet at {session.location}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            )}
           </div>
         </section>
       </div>
