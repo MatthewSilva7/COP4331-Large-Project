@@ -1,14 +1,79 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AuthLayout from "./components/AuthLayout";
 import LoginForm from "./components/LoginForm";
 import RegisterForm from "./components/RegisterForm";
 import ResetPasswordForm from "./components/ResetPasswordForm";
+import DashboardPage from "./pages/DashboardPage";
+import ProfilePage from "./pages/ProfilePage";
 import { AnimatePresence, motion } from "motion/react";
+import type { AuthUser } from "./types/auth";
+import {
+  hydrateUserProfile,
+  persistUserProfile,
+} from "./services/authService";
 
 type AuthState = "login" | "register" | "reset";
+type AppView = "dashboard" | "profile";
 
 export default function App() {
   const [authState, setAuthState] = useState<AuthState>("login");
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [appView, setAppView] = useState<AppView>("dashboard");
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    const storedToken = localStorage.getItem("token");
+
+    if (!storedUser || !storedToken) {
+      return;
+    }
+
+    try {
+      setCurrentUser(hydrateUserProfile(JSON.parse(storedUser) as AuthUser));
+    } catch {
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+    }
+  }, []);
+
+  const handleLoginSuccess = (user: AuthUser) => {
+    const hydratedUser = persistUserProfile(hydrateUserProfile(user));
+    setCurrentUser(hydratedUser);
+    setAppView("dashboard");
+  };
+
+  const handleProfileSave = (user: AuthUser) => {
+    const savedUser = persistUserProfile(user);
+    setCurrentUser(savedUser);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    setCurrentUser(null);
+    setAuthState("login");
+    setAppView("dashboard");
+  };
+
+  if (currentUser) {
+    if (appView === "profile") {
+      return (
+        <ProfilePage
+          user={currentUser}
+          onBack={() => setAppView("dashboard")}
+          onLogout={handleLogout}
+          onSaveProfile={handleProfileSave}
+        />
+      );
+    }
+
+    return (
+      <DashboardPage
+        user={currentUser}
+        onOpenProfile={() => setAppView("profile")}
+      />
+    );
+  }
 
   const getTitle = () => {
     switch (authState) {
@@ -40,6 +105,7 @@ export default function App() {
             <LoginForm 
               onToggle={() => setAuthState("register")} 
               onForgotPassword={() => setAuthState("reset")}
+              onSuccess={handleLoginSuccess}
             />
           </motion.div>
         )}

@@ -1,13 +1,18 @@
-import { loginUser, registerUser } from "../services/authService";
+import { loginUser } from "../services/authService";
 import React, { useState } from "react";
-import { motion } from "motion/react";
+import type { AuthUser } from "../types/auth";
 
 interface LoginFormProps {
   onToggle: () => void;
   onForgotPassword: () => void;
+  onSuccess: (user: AuthUser) => void;
 }
 
-export default function LoginForm({ onToggle, onForgotPassword }: LoginFormProps) {
+export default function LoginForm({
+  onToggle,
+  onForgotPassword,
+  onSuccess,
+}: LoginFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -23,9 +28,7 @@ export default function LoginForm({ onToggle, onForgotPassword }: LoginFormProps
       // Save the token to local storage
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
-  
-      // For now, just alert success. Later, use navigate('/dashboard')
-      alert(`Welcome back, ${data.user.firstName}!`);
+      onSuccess(data.user);
       
     } catch (err: any) {
       if (err.message === "VERIFICATION_REQUIRED") {
