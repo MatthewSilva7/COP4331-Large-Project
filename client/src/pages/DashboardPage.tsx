@@ -10,7 +10,7 @@ import type { AuthUser, DashboardData, SessionSummary } from "../types/auth";
 interface DashboardPageProps {
   user: AuthUser;
   onOpenProfile: () => void;
-  onLogout: () => void; // Added for the new Logout button
+  onLogout: () => void;
 }
 
 export default function DashboardPage({ user, onOpenProfile, onLogout }: DashboardPageProps) {
@@ -33,7 +33,6 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
   const [formMessage, setFormMessage] = useState("");
   const [formError, setFormError] = useState("");
   const [sessionSearch, setSessionSearch] = useState("");
-  const [showProfileMatchesOnly, setShowProfileMatchesOnly] = useState(false);
 
   const loadDashboard = async (showLoading = true) => {
     if (showLoading) setIsLoading(true);
@@ -76,8 +75,7 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
     return () => { isMounted = false; };
   }, [user.id]);
 
-  // COMBINE SESSIONS FOR THE MAIN LIST
-  // We merge hosted sessions (from dashboardData) and joinable ones (availableSessions)
+  // Combined sessions for the main feed
   const allSessions = [
     ...(dashboardData?.sessions ?? []).map(s => ({ ...s, canJoin: false })),
     ...availableSessions.map(s => ({ ...s, canJoin: true }))
@@ -101,6 +99,7 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
   const handleCreateSession = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setFormMessage("");
     setFormError("");
 
     try {
@@ -108,11 +107,17 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
       await createSession({
         subject: formattedSubject,
         location,
-        time: `${sessionDate} at ${sessionTime}`,
+        time: `${new Date(sessionDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${sessionTime}`,
         hostName: `${user.firstName} ${user.lastName}`,
         userId: user.id,
       });
 
+      setCourseSubject("");
+      setCourseNumber("");
+      setProfessorLastName("");
+      setLocation("");
+      setSessionDate("");
+      setSessionTime("");
       setIsHostSessionOpen(false);
       await loadDashboard(false);
     } catch (err: any) {
@@ -122,7 +127,6 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
     }
   };
 
-  // Filter combined list based on search
   const filteredSessions = allSessions.filter((session) => {
     const haystack = `${session.subject} ${session.location} ${session.hostName}`.toLowerCase();
     return haystack.includes(sessionSearch.toLowerCase());
@@ -137,8 +141,13 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
               <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#6d654f]">Study Buddy Dashboard</p>
               <h1 className="mt-3 font-serif text-4xl font-semibold text-[#201c15] sm:text-5xl">Welcome back, {user.firstName}.</h1>
               <div className="mt-8 flex flex-wrap gap-3">
-                <button onClick={() => setIsJoinSessionOpen(true)} className="rounded-full bg-[#3d5a40] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#314934]">Browse Sessions</button>
-                <button onClick={() => setIsHostSessionOpen(true)} className="rounded-full border border-[#8a826b] bg-white/70 px-5 py-3 text-sm font-semibold text-[#2e2a22] transition hover:bg-white">Host a Session</button>
+                {/* "Browse Sessions" button removed as requested */}
+                <button 
+                  onClick={() => setIsHostSessionOpen(true)} 
+                  className="rounded-full bg-[#3d5a40] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#314934]"
+                >
+                  Host a Session
+                </button>
               </div>
             </div>
 
@@ -152,15 +161,12 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
                 </div>
               </div>
               <button onClick={onOpenProfile} className="mt-6 w-full rounded-full border border-[#8a826b] px-4 py-3 text-sm font-semibold transition hover:bg-[#f7f2e8]">Open profile page</button>
-              
-              {/* LOGOUT BUTTON */}
               <button onClick={onLogout} className="mt-3 w-full rounded-full bg-red-50 px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-100">Log Out</button>
             </aside>
           </div>
         </section>
 
         <section className="grid gap-6 lg:grid-cols-[0.72fr_1.58fr]">
-          {/* LEFT: UPCOMING (HOSTED) */}
           <div className="rounded-[1.75rem] border border-[#e6dfd0] bg-white p-6 shadow-sm">
             <h2 className="font-serif text-3xl font-semibold text-[#201c15]">Next up</h2>
             {isLoading ? <p className="mt-4">Loading...</p> : dashboardData?.sessions[0] ? (
@@ -172,11 +178,16 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
             ) : <p className="mt-4 text-gray-500">Nothing scheduled yet.</p>}
           </div>
 
-          {/* RIGHT: ALL SESSIONS FEED */}
           <div className="rounded-[1.75rem] border border-[#e6dfd0] bg-white p-6 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
               <h2 className="font-serif text-3xl font-semibold text-[#201c15]">View all sessions</h2>
-              <input type="search" value={sessionSearch} onChange={(e) => setSessionSearch(e.target.value)} placeholder="Search sessions..." className="w-full max-w-xs rounded-full border border-[#d6cfbf] bg-[#fcfaf4] px-4 py-2.5 text-sm" />
+              <input 
+                type="search" 
+                value={sessionSearch} 
+                onChange={(e) => setSessionSearch(e.target.value)} 
+                placeholder="Search sessions..." 
+                className="w-full max-w-xs rounded-full border border-[#d6cfbf] bg-[#fcfaf4] px-4 py-2.5 text-sm outline-none focus:border-[#5a5a40]" 
+              />
             </div>
 
             <div className="grid gap-4 max-h-[600px] overflow-y-auto pr-2">
@@ -186,7 +197,7 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
                     <div>
                       <h3 className="text-xl font-semibold text-[#201c15]">{session.subject}</h3>
                       <p className="mt-1 text-sm text-[#5e584b]">{session.time}</p>
-                      <p className="mt-3 text-sm text-[#4c4638]">Location: {session.location}</p>
+                      <p className="mt-3 text-sm text-[#4c4638]">Meet at {session.location}</p>
                     </div>
                     {session.canJoin ? (
                       <button 
@@ -207,7 +218,33 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
         </section>
       </div>
 
-      {/* MODALS RENDERED AS BEFORE... (Host Session Modal, etc.) */}
+      {/* HOST SESSION MODAL */}
+      {isHostSessionOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1f1a12]/55 px-4 py-8 backdrop-blur-sm" onClick={() => setIsHostSessionOpen(false)}>
+          <div className="w-full max-w-lg rounded-[2rem] border border-[#e6dfd0] bg-[#fffdf8] p-6 shadow-2xl sm:p-8" onClick={(e) => e.stopPropagation()}>
+            <h2 className="font-serif text-3xl font-semibold text-[#201c15]">Host a Session</h2>
+            <form className="mt-6 space-y-4" onSubmit={handleCreateSession}>
+              <div className="grid grid-cols-2 gap-4">
+                <input type="text" required value={courseSubject} onChange={(e) => setCourseSubject(e.target.value.toUpperCase().slice(0,3))} placeholder="Subject (COP)" className="rounded-xl border p-2 text-sm focus:ring-1 focus:ring-[#5A5A40] outline-none" />
+                <input type="text" required value={courseNumber} onChange={(e) => setCourseNumber(e.target.value.replace(/\D/g, "").slice(0,4))} placeholder="Number (4331)" className="rounded-xl border p-2 text-sm focus:ring-1 focus:ring-[#5A5A40] outline-none" />
+              </div>
+              <input type="text" required value={professorLastName} onChange={(e) => setProfessorLastName(e.target.value)} placeholder="Professor Last Name" className="w-full rounded-xl border p-2 text-sm focus:ring-1 focus:ring-[#5A5A40] outline-none" />
+              <input type="text" required value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location" className="w-full rounded-xl border p-2 text-sm focus:ring-1 focus:ring-[#5A5A40] outline-none" />
+              <div className="grid grid-cols-2 gap-4">
+                <input type="date" required value={sessionDate} onChange={(e) => setSessionDate(e.target.value)} className="rounded-xl border p-2 text-sm outline-none" />
+                <input type="time" required value={sessionTime} onChange={(e) => setSessionTime(e.target.value)} className="rounded-xl border p-2 text-sm outline-none" />
+              </div>
+              {formError && <p className="text-xs text-red-500">{formError}</p>}
+              <div className="flex gap-3 justify-end mt-4">
+                <button type="button" onClick={() => setIsHostSessionOpen(false)} className="px-4 py-2 text-sm font-semibold">Cancel</button>
+                <button type="submit" disabled={isSubmitting} className="rounded-full bg-[#5A5A40] px-6 py-2 text-sm text-white font-bold disabled:opacity-50">
+                  {isSubmitting ? "Creating..." : "Host Session"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
