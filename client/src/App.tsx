@@ -1,48 +1,14 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import AuthLayout from "./components/AuthLayout";
 import LoginForm from "./components/LoginForm";
 import RegisterForm from "./components/RegisterForm";
 import ResetPasswordForm from "./components/ResetPasswordForm";
-import DashboardPage from "./pages/DashboardPage";
 import { AnimatePresence, motion } from "motion/react";
-import type { AuthUser } from "./types/auth";
 
 type AuthState = "login" | "register" | "reset";
 
 export default function App() {
   const [authState, setAuthState] = useState<AuthState>("login");
-  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
-
-  useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    const storedToken = localStorage.getItem("token");
-
-    if (!storedUser || !storedToken) {
-      return;
-    }
-
-    try {
-      setCurrentUser(JSON.parse(storedUser) as AuthUser);
-    } catch {
-      localStorage.removeItem("user");
-      localStorage.removeItem("token");
-    }
-  }, []);
-
-  const handleLoginSuccess = (user: AuthUser) => {
-    setCurrentUser(user);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    setCurrentUser(null);
-    setAuthState("login");
-  };
-
-  if (currentUser) {
-    return <DashboardPage user={currentUser} onLogout={handleLogout} />;
-  }
 
   const getTitle = () => {
     switch (authState) {
@@ -74,7 +40,6 @@ export default function App() {
             <LoginForm 
               onToggle={() => setAuthState("register")} 
               onForgotPassword={() => setAuthState("reset")}
-              onSuccess={handleLoginSuccess}
             />
           </motion.div>
         )}
