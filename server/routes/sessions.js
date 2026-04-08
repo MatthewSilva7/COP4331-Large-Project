@@ -30,4 +30,14 @@ router.post('/create', async (req, res) => {
     }
 });
 
+// GET: Fetch all study groups
+router.get('/', async (req, res) => {
+    try {
+        const sessions = await Session.find().sort({ createdAt: -1 });
+        res.json(sessions);
+    } catch (err) {
+        res.status(500).json({ message: "Could not fetch sessions" });
+    }
+});
+
 module.exports = router;
