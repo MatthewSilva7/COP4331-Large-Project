@@ -2,12 +2,11 @@ import { useState } from "react";
 import AuthLayout from "./components/AuthLayout";
 import LoginForm from "./components/LoginForm";
 import RegisterForm from "./components/RegisterForm";
-import ResetPasswordForm from "./components/ResetPasswordForm";
 import DashboardPage from "./pages/DashboardPage"; 
 import { AnimatePresence, motion } from "motion/react";
 import { hydrateUserProfile } from "./services/authService";
 
-type AuthState = "login" | "register" | "reset" | "dashboard" | "profile";
+type AuthState = "login" | "register" | "dashboard" | "profile";
 
 export default function App() {
   const [authState, setAuthState] = useState<AuthState>(() => {
@@ -25,7 +24,6 @@ export default function App() {
   };
 
   if (authState === "dashboard") {
-    // We hydrate the user profile to ensure major/courses are included
     const rawUser = JSON.parse(localStorage.getItem('user') || '{}');
     const user = hydrateUserProfile(rawUser);
 
@@ -38,9 +36,8 @@ export default function App() {
     );
   }
 
-  // Handle simple routing for the profile page if needed
   if (authState === "profile") {
-    return <div className="p-10 text-center">Profile Page Placeholder - <button onClick={() => setAuthState("dashboard")} className="underline">Back</button></div>;
+    return <div className="p-10 text-center">Profile Page Placeholder - <button onClick={() => setAuthState("dashboard")} className="underline">Back to Dashboard</button></div>;
   }
 
   return (
