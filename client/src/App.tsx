@@ -2,14 +2,17 @@ import { useState } from "react";
 import AuthLayout from "./components/AuthLayout";
 import LoginForm from "./components/LoginForm";
 import RegisterForm from "./components/RegisterForm";
+import ResetPasswordForm from "./components/ResetPasswordForm";
 import DashboardPage from "./pages/DashboardPage"; 
 import { AnimatePresence, motion } from "motion/react";
 import { hydrateUserProfile } from "./services/authService";
 
-type AuthState = "login" | "register" | "dashboard" | "profile";
+// FIXED: Added "reset" back to the allowed states
+type AuthState = "login" | "register" | "reset" | "dashboard" | "profile";
 
 export default function App() {
   const [authState, setAuthState] = useState<AuthState>(() => {
+    // Check if a token exists to keep the user logged in on refresh
     return localStorage.getItem("token") ? "dashboard" : "login";
   });
 
@@ -23,6 +26,7 @@ export default function App() {
     setAuthState("dashboard");
   };
 
+  // ROUTING LOGIC: If logged in, show the Dashboard
   if (authState === "dashboard") {
     const rawUser = JSON.parse(localStorage.getItem('user') || '{}');
     const user = hydrateUserProfile(rawUser);
@@ -36,15 +40,34 @@ export default function App() {
     );
   }
 
+  // Handle profile routing placeholder
   if (authState === "profile") {
-    return <div className="p-10 text-center">Profile Page Placeholder - <button onClick={() => setAuthState("dashboard")} className="underline">Back to Dashboard</button></div>;
+    return (
+      <div className="p-10 text-center font-serif">
+        <h1 className="text-2xl mb-4">Profile Page</h1>
+        <p className="mb-6">Profile editing coming soon.</p>
+        <button 
+          onClick={() => setAuthState("dashboard")} 
+          className="rounded-full border border-[#8a826b] px-6 py-2 text-sm font-semibold transition hover:bg-[#f7f2e8]"
+        >
+          Back to Dashboard
+        </button>
+      </div>
+    );
   }
 
+  // AUTH VIEW: Login, Register, or Reset
+  const getTitle = () => {
+    if (authState === "register") return "Join Study Buddy";
+    if (authState === "reset") return "Reset Password";
+    return "Welcome Back";
+  };
+
   return (
-    <AuthLayout title={authState === "register" ? "Join Study Buddy" : "Welcome Back"} subtitle="Your study sessions are waiting.">
+    <AuthLayout title={getTitle()} subtitle="Your study sessions are waiting.">
       <AnimatePresence mode="wait">
         {authState === "login" && (
-          <motion.div key="login" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+          <motion.div key="login" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
             <LoginForm 
               onToggle={() => setAuthState("register")} 
               onForgotPassword={() => setAuthState("reset")}
@@ -53,8 +76,13 @@ export default function App() {
           </motion.div>
         )}
         {authState === "register" && (
-          <motion.div key="register" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+          <motion.div key="register" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
             <RegisterForm onToggle={() => setAuthState("login")} />
+          </motion.div>
+        )}
+        {authState === "reset" && (
+          <motion.div key="reset" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}>
+            <ResetPasswordForm onBack={() => setAuthState("login")} />
           </motion.div>
         )}
       </AnimatePresence>
