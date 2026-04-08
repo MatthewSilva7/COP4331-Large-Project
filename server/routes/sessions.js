@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Session = require('../models/Session');
 
+// 1. GET: Dashboard data (Sessions hosted by the user)
 router.get('/user/:userId', async (req, res) => {
     try {
         const sessions = await Session.find({ userId: req.params.userId }).sort({ createdAt: -1 });
@@ -11,6 +12,7 @@ router.get('/user/:userId', async (req, res) => {
     }
 });
 
+// 2. GET: Available sessions (Sessions hosted by OTHER people)
 router.get('/available/:userId', async (req, res) => {
     try {
         const sessions = await Session.find({ userId: { $ne: req.params.userId } }).sort({ createdAt: -1 });
@@ -20,6 +22,7 @@ router.get('/available/:userId', async (req, res) => {
     }
 });
 
+// 3. POST: Create a new session
 router.post('/create', async (req, res) => {
     try {
         const { subject, location, time, hostName, userId } = req.body;
@@ -27,13 +30,14 @@ router.post('/create', async (req, res) => {
         const savedSession = await newSession.save();
         res.status(201).json({ message: "Study session created!", session: savedSession });
     } catch (err) {
-        res.status(500).json({ message: "Server error: Could not create session" });
+        res.status(500).json({ message: "Server error" });
     }
 });
 
+// 4. POST: Join a session (Mocked success)
 router.post('/join', async (req, res) => {
     try {
-        res.status(200).json({ message: "Success! (Not saved to DB yet)", session: {} });
+        res.status(200).json({ message: "Joined session!", session: {} });
     } catch (err) {
         res.status(500).json({ message: "Error joining session" });
     }
