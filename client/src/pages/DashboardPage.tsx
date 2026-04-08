@@ -13,7 +13,8 @@ export default function DashboardPage({ user, onLogout }: DashboardPageProps) {
   const [error, setError] = useState("");
   const [subject, setSubject] = useState("");
   const [location, setLocation] = useState("");
-  const [time, setTime] = useState("");
+  const [sessionDate, setSessionDate] = useState("");
+  const [sessionTime, setSessionTime] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formMessage, setFormMessage] = useState("");
   const [formError, setFormError] = useState("");
@@ -65,24 +66,60 @@ export default function DashboardPage({ user, onLogout }: DashboardPageProps) {
     };
   }, [user.id]);
 
+  const formatSessionDateTime = (date: string, time: string) => {
+    const dateTime = new Date(`${date}T${time}`);
+
+    return new Intl.DateTimeFormat("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(dateTime);
+  };
+
   const handleCreateSession = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setFormMessage("");
     setFormError("");
 
+    const trimmedSubject = subject.trim();
+    const trimmedLocation = location.trim();
+
+    if (!trimmedSubject || !trimmedLocation || !sessionDate || !sessionTime) {
+      setFormError("Please complete every field before hosting a session.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    const selectedDateTime = new Date(`${sessionDate}T${sessionTime}`);
+
+    if (Number.isNaN(selectedDateTime.getTime())) {
+      setFormError("Please choose a valid date and time.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (selectedDateTime <= new Date()) {
+      setFormError("Please choose a date and time in the future.");
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       await createSession({
-        subject,
-        location,
-        time,
+        subject: trimmedSubject,
+        location: trimmedLocation,
+        time: formatSessionDateTime(sessionDate, sessionTime),
         hostName: `${user.firstName} ${user.lastName}`,
         userId: user.id,
       });
 
       setSubject("");
       setLocation("");
-      setTime("");
+      setSessionDate("");
+      setSessionTime("");
       setFormMessage("Session created successfully.");
       await loadDashboard(false);
     } catch (err: any) {
@@ -248,6 +285,24 @@ export default function DashboardPage({ user, onLogout }: DashboardPageProps) {
 
                 <div>
                   <label
+                    htmlFor="session-date"
+                    className="block text-sm font-medium text-[#3d372d]"
+                  >
+                    Date
+                  </label>
+                  <input
+                    id="session-date"
+                    type="date"
+                    required
+                    min={new Date().toISOString().split("T")[0]}
+                    value={sessionDate}
+                    onChange={(e) => setSessionDate(e.target.value)}
+                    className="mt-1 block w-full rounded-xl border border-[#ddd4c3] bg-white px-3 py-2 text-sm text-[#201c15] focus:border-[#5A5A40] focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label
                     htmlFor="session-time"
                     className="block text-sm font-medium text-[#3d372d]"
                   >
@@ -255,12 +310,11 @@ export default function DashboardPage({ user, onLogout }: DashboardPageProps) {
                   </label>
                   <input
                     id="session-time"
-                    type="text"
+                    type="time"
                     required
-                    value={time}
-                    onChange={(e) => setTime(e.target.value)}
+                    value={sessionTime}
+                    onChange={(e) => setSessionTime(e.target.value)}
                     className="mt-1 block w-full rounded-xl border border-[#ddd4c3] bg-white px-3 py-2 text-sm text-[#201c15] focus:border-[#5A5A40] focus:outline-none"
-                    placeholder="Thursday, 6:00 PM"
                   />
                 </div>
 
