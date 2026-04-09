@@ -253,3 +253,14 @@ export const joinSession = async (
 
   return data;
 };
+
+export const leaveSession = async (payload: JoinSessionPayload): Promise<{ message: string }> => {
+  const response = await fetch(`${SESSION_API_BASE_URL}/sessions/leave`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await parseApiResponse<{ message: string }>(response, "Unexpected response leaving session.");
+  if (!response.ok) throw new Error(data.message || "Could not leave session");
+  return data;
+};
