@@ -4,7 +4,7 @@ import {
   getAvailableSessions,
   getDashboardData,
   joinSession,
-  leaveSession, // Added this import
+  leaveSession,
 } from "../services/authService";
 import type { AuthUser, DashboardData, SessionSummary } from "../types/auth";
 
@@ -21,10 +21,12 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   
+  // Modal States
   const [isHostSessionOpen, setIsHostSessionOpen] = useState(false);
   const [viewingParticipants, setViewingParticipants] = useState<SessionSummary | null>(null);
   const [isJoiningSessionId, setIsJoiningSessionId] = useState("");
   
+  // Form State
   const [courseSubject, setCourseSubject] = useState("");
   const [courseNumber, setCourseNumber] = useState("");
   const [professorLastName, setProfessorLastName] = useState("");
@@ -43,6 +45,7 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
         getAvailableSessions(user.id),
       ]);
       setHostedSessions(data.sessions || []);
+      // Filter out sessions where YOU are the host from the "Join" list
       const filteredAvailable = (available || []).filter(s => s.userId !== user.id);
       setAvailableSessions(filteredAvailable);
     } catch (err: any) {
@@ -84,19 +87,14 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
     }
   };
 
-  // NEW: Handle Leave Logic
   const handleLeaveSession = async (session: SessionSummary) => {
     try {
-      // Mock call to backend
       await leaveSession({ sessionId: session._id, userId: user.id });
-      
-      // Update local state: remove from joined, put back in available
       setJoinedSessions(prev => prev.filter(s => s._id !== session._id));
       setAvailableSessions(prev => [...prev, { ...session, isJoined: false }]);
-      
       if (viewingParticipants?._id === session._id) setViewingParticipants(null);
     } catch (err: any) {
-      alert("Could not leave the group.");
+      alert("Could not leave group.");
     }
   };
 
@@ -143,6 +141,15 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
                 <div className="w-12 h-12 rounded-xl bg-[#5a5a40] flex items-center justify-center text-white font-bold text-xl">{user.firstName[0]}</div>
                 <h2 className="font-bold text-[#201c15]">{user.firstName} {user.lastName}</h2>
               </div>
+              
+              {/* RESTORED: Profile Button */}
+              <button 
+                onClick={onOpenProfile} 
+                className="w-full rounded-full border border-[#8a826b] px-4 py-2.5 text-xs font-bold transition hover:bg-[#f7f2e8] mb-3"
+              >
+                Open profile page
+              </button>
+
               <button onClick={onLogout} className="w-full rounded-full bg-red-50 py-2.5 text-xs font-bold text-red-600 hover:bg-red-100 transition-colors">Log Out</button>
             </aside>
           </div>
@@ -158,21 +165,12 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
                 <div key={s._id} className="p-4 rounded-2xl bg-[#f8f2e7] border border-[#efe8da] group">
                   <div className="flex justify-between items-start">
                     <h3 className="font-bold cursor-pointer hover:underline text-[#201c15]" onClick={() => setViewingParticipants(s)}>{s.subject}</h3>
-                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${s.isJoined ? "bg-blue-100 text-blue-700" : "bg-white/50 text-[#7d765f]"}`}>
-                      {s.isJoined ? "Joined" : "Host"}
-                    </span>
+                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${s.isJoined ? "bg-blue-100 text-blue-700" : "bg-white/50 text-[#7d765f]"}`}>{s.isJoined ? "Joined" : "Host"}</span>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">{s.time}</p>
                   <p className="text-[10px] text-[#7d765f] mt-1 italic font-medium">📍 {s.location}</p>
-                  
-                  {/* LEAVE BUTTON: Only shows if you are a participant */}
                   {s.isJoined && (
-                    <button 
-                      onClick={() => handleLeaveSession(s)}
-                      className="mt-3 w-full py-1.5 rounded-xl border border-red-200 text-red-500 text-[10px] font-bold uppercase hover:bg-red-50 transition-colors"
-                    >
-                      Leave Group
-                    </button>
+                    <button onClick={() => handleLeaveSession(s)} className="mt-3 w-full py-1.5 rounded-xl border border-red-200 text-red-500 text-[10px] font-bold uppercase hover:bg-red-50 transition-colors">Leave Group</button>
                   )}
                 </div>
               ))}
@@ -180,7 +178,7 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
             </div>
           </div>
 
-          {/* RIGHT: ALL SESSIONS */}
+          {/* RIGHT: JOIN A SESSION */}
           <div className="rounded-[1.75rem] border border-[#e6dfd0] bg-white p-6 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
               <h2 className="font-serif text-3xl font-semibold text-[#201c15]">Join a Session</h2>
@@ -195,9 +193,7 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
                     <p className="text-sm text-[#4c4638] mt-1 font-medium">📍 {session.location}</p>
                     <p className="text-xs text-[#7d765f] mt-1 font-semibold uppercase tracking-wider">Hosted by {session.hostName}</p>
                   </div>
-                  <button onClick={() => handleJoinSession(session)} disabled={isJoiningSessionId === session._id} className="rounded-full bg-[#3d5a40] px-6 py-2 text-sm text-white font-bold hover:bg-[#314934] disabled:opacity-50">
-                    {isJoiningSessionId === session._id ? "..." : "Join"}
-                  </button>
+                  <button onClick={() => handleJoinSession(session)} disabled={isJoiningSessionId === session._id} className="rounded-full bg-[#3d5a40] px-6 py-2 text-sm text-white font-bold hover:bg-[#314934] disabled:opacity-50">Join</button>
                 </article>
               ))}
             </div>
@@ -238,8 +234,8 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
                 <input type="text" required value={courseSubject} onChange={(e) => setCourseSubject(e.target.value.toUpperCase().slice(0,3))} placeholder="Subject" className="rounded-xl border p-3 text-sm focus:ring-2 focus:ring-[#5A5A40] outline-none" />
                 <input type="text" required value={courseNumber} onChange={(e) => setCourseNumber(e.target.value.replace(/\D/g, "").slice(0,4))} placeholder="Number" className="rounded-xl border p-3 text-sm focus:ring-2 focus:ring-[#5A5A40] outline-none" />
               </div>
-              <input type="text" required value={professorLastName} onChange={(e) => setProfessorLastName(e.target.value)} placeholder="Professor Last Name" className="w-full rounded-xl border p-3 text-sm outline-none" />
-              <input type="text" required value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location" className="w-full rounded-xl border p-3 text-sm outline-none" />
+              <input type="text" required value={professorLastName} onChange={(e) => setProfessorLastName(e.target.value)} placeholder="Professor Last Name" className="w-full rounded-xl border p-3 text-sm focus:ring-2 focus:ring-[#5A5A40] outline-none" />
+              <input type="text" required value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location" className="w-full rounded-xl border p-3 text-sm focus:ring-2 focus:ring-[#5A5A40] outline-none" />
               <div className="grid grid-cols-2 gap-4">
                 <input type="date" required value={sessionDate} onChange={(e) => setSessionDate(e.target.value)} className="rounded-xl border p-3 text-sm outline-none" />
                 <input type="time" required value={sessionTime} onChange={(e) => setSessionTime(e.target.value)} className="rounded-xl border p-3 text-sm outline-none" />
