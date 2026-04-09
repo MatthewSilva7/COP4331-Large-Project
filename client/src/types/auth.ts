@@ -23,6 +23,7 @@ export interface SessionSummary {
   isJoined?: boolean;
   createdAt: string;
   updatedAt: string;
+  participants?: any[];
 }
 
 export interface DashboardStats {
