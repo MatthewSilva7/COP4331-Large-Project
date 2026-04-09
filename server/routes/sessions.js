@@ -43,4 +43,14 @@ router.post('/join', async (req, res) => {
     }
 });
 
+// 5. POST: Leave a session (Mocked success)
+router.post('/leave', async (req, res) => {
+    try {
+        // Return success for now so the UI updates
+        res.status(200).json({ message: "Successfully left the session!" });
+    } catch (err) {
+        res.status(500).json({ message: "Error leaving session" });
+    }
+});
+
 module.exports = router;
