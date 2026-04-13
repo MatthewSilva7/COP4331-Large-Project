@@ -2,69 +2,81 @@ import React, { useState } from 'react';
 import { loginUser } from '../services/authService';
 
 const LoginPage: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setInputEmail] = useState('');
+  const [password, setInputPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log(">>> [DEBUG] Submit Clicked. Email:", email);
+    
+    setError('');
     setIsLoading(true);
-    setError(''); // Clear previous errors
 
     try {
+      console.log(">>> [DEBUG] Calling loginUser service...");
       const data = await loginUser(email, password);
       
-      // Store credentials
+      console.log(">>> [DEBUG] Success! Received data:", data);
+      
+      // Save credentials for the App to find
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
 
-      // Redirect - You might need to call a function from props here
-      // like onSuccess() to tell App.tsx to switch to the dashboard
-      window.location.reload(); 
+      // Force a hard refresh to the dashboard
+      window.location.href = "/"; 
       
     } catch (err: any) {
-      // This catches the "Invalid credentials" error from your authService
-      setError(err.message || "We couldn't find an account with that email or password.");
+      console.error(">>> [DEBUG] Catch block reached. Error:", err);
+      
+      // THE SMOKING GUN: If this alert doesn't show up, 
+      // your frontend isn't seeing the backend error at all.
+      window.alert("FRONTEND DETECTED ERROR: " + (err.message || "Unknown Error"));
+      
+      setError(err.message || "Incorrect email or password.");
     } finally {
       setIsLoading(false);
+      console.log(">>> [DEBUG] Request finished (Finally block).");
     }
   };
 
   return (
-    <div className="flex min-h-[400px] flex-col justify-center">
-      <div className="mx-auto w-full max-w-sm rounded-[2rem] border border-[#e6dfd0] bg-white p-8 shadow-xl">
-        <h2 className="text-center font-serif text-3xl font-semibold text-[#201c15] mb-6">Login</h2>
+    <div className="flex min-h-[400px] flex-col justify-center bg-[#f9f7f2] px-4 py-12">
+      <div className="mx-auto w-full max-w-sm rounded-[2rem] border border-[#e6dfd0] bg-white p-8 shadow-2xl">
+        <h2 className="text-center font-serif text-3xl font-semibold text-[#201c15] mb-8">Login</h2>
 
-        {/* ERROR MESSAGE BOX */}
+        {/* PROMINENT ERROR BOX */}
         {error && (
-          <div className="mb-6 rounded-xl border border-[#ebd2cc] bg-[#fff5f2] px-4 py-3 text-sm text-[#8a3d2f] animate-in fade-in slide-in-from-top-1">
-            <p className="font-bold mb-1">Login Failed</p>
-            {error}
+          <div className="mb-6 rounded-2xl border border-[#ebd2cc] bg-[#fff5f2] p-4 text-sm text-[#8a3d2f] animate-bounce">
+            <p className="font-bold flex items-center gap-2">
+              <span>⚠️</span> Login Failed
+            </p>
+            <p className="mt-1">{error}</p>
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-[#6d654f] mb-1">Email Address</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[#7d765f] mb-2 ml-1">Email Address</label>
             <input 
               type="email" 
-              placeholder="name@example.com"
-              className="w-full rounded-xl border border-[#ddd4c3] bg-[#fcfaf4] px-4 py-3 text-sm text-[#201c15] outline-none focus:border-[#5A5A40] transition-colors"
+              placeholder="e.g. bob@knights.ucf.edu"
+              className="w-full rounded-2xl border border-[#ddd4c3] bg-[#fcfaf4] px-4 py-3.5 text-sm text-[#201c15] outline-none focus:border-[#5A5A40] focus:ring-1 focus:ring-[#5A5A40] transition-all"
               value={email} 
-              onChange={(e) => setEmail(e.target.value)} 
+              onChange={(e) => setInputEmail(e.target.value)} 
               required 
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-[#6d654f] mb-1">Password</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[#7d765f] mb-2 ml-1">Password</label>
             <input 
               type="password" 
               placeholder="••••••••"
-              className="w-full rounded-xl border border-[#ddd4c3] bg-[#fcfaf4] px-4 py-3 text-sm text-[#201c15] outline-none focus:border-[#5A5A40] transition-colors"
+              className="w-full rounded-2xl border border-[#ddd4c3] bg-[#fcfaf4] px-4 py-3.5 text-sm text-[#201c15] outline-none focus:border-[#5A5A40] focus:ring-1 focus:ring-[#5A5A40] transition-all"
               value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
+              onChange={(e) => setInputPassword(e.target.value)} 
               required 
             />
           </div>
@@ -72,14 +84,14 @@ const LoginPage: React.FC = () => {
           <button 
             type="submit" 
             disabled={isLoading}
-            className="w-full rounded-full bg-[#3d5a40] py-4 text-sm font-bold text-white shadow-md transition hover:bg-[#314934] disabled:opacity-50 active:scale-95"
+            className="mt-4 w-full rounded-full bg-[#3d5a40] py-4 text-sm font-bold text-white shadow-lg transition-all hover:bg-[#314934] hover:shadow-xl active:scale-95 disabled:opacity-50"
           >
-            {isLoading ? "Checking credentials..." : "Sign In"}
+            {isLoading ? "Validating Account..." : "Sign In"}
           </button>
         </form>
 
-        <p className="mt-8 text-center text-xs text-[#7d765f] uppercase tracking-widest">
-          Study Buddy v1.0
+        <p className="mt-10 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-[#b5af9a]">
+          Study Buddy Finder v1.2
         </p>
       </div>
     </div>
