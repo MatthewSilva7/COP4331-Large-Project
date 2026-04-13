@@ -5,6 +5,7 @@ import {
   getDashboardData,
   joinSession,
   leaveSession,
+  searchSessions,
 } from "../services/authService";
 import type { AuthUser, DashboardData, SessionSummary } from "../types/auth";
 
@@ -36,6 +37,8 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
   const [sessionSearch, setSessionSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<SessionSummary[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   const loadDashboard = async (showLoading = true) => {
     if (showLoading) setIsLoading(true);
@@ -56,6 +59,30 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
   };
 
   useEffect(() => { loadDashboard(); }, [user.id]);
+
+  useEffect(() => {
+    const trimmedSearch = sessionSearch.trim();
+
+    if (!trimmedSearch) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        setIsSearching(true);
+        const results = await searchSessions(trimmedSearch, user.id);
+        setSearchResults(results);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [sessionSearch, user.id]);
 
   const getTimeValue = (session: SessionSummary) => {
     const date = new Date(session.time.replace(' at ', ' '));
@@ -119,9 +146,7 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
     }
   };
 
-  const filteredAvailable = availableSessions.filter((s) =>
-    s.subject.toLowerCase().includes(sessionSearch.toLowerCase())
-  );
+  const displayedAvailable = sessionSearch.trim() ? searchResults : availableSessions;
 
   return (
     <main className="min-h-screen px-4 py-8 sm:px-6 lg:px-8 bg-[#f9f7f2]">
@@ -182,10 +207,10 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
           <div className="rounded-[1.75rem] border border-[#e6dfd0] bg-white p-6 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
               <h2 className="font-serif text-3xl font-semibold text-[#201c15]">Join a Session</h2>
-              <input type="search" value={sessionSearch} onChange={(e) => setSessionSearch(e.target.value)} placeholder="Search subjects..." className="w-full max-w-xs rounded-full border border-[#d6cfbf] bg-[#fcfaf4] px-4 py-2.5 text-sm outline-none focus:border-[#5a5a40]" />
+              <input type="search" value={sessionSearch} onChange={(e) => setSessionSearch(e.target.value)} placeholder="Search subjects, host, or location..." className="w-full max-w-xs rounded-full border border-[#d6cfbf] bg-[#fcfaf4] px-4 py-2.5 text-sm outline-none focus:border-[#5a5a40]" />
             </div>
             <div className="grid gap-4 max-h-[600px] overflow-y-auto pr-2">
-              {filteredAvailable.map((session) => (
+              {displayedAvailable.map((session) => (
                 <article key={session._id} className="rounded-[1.5rem] border border-[#efe8da] p-5 bg-white flex justify-between items-center hover:shadow-md transition-shadow">
                   <div className="cursor-pointer" onClick={() => setViewingParticipants(session)}>
                     <h3 className="text-xl font-bold text-[#201c15] hover:text-[#3d5a40]">{session.subject}</h3>
@@ -196,6 +221,12 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
                   <button onClick={() => handleJoinSession(session)} disabled={isJoiningSessionId === session._id} className="rounded-full bg-[#3d5a40] px-6 py-2 text-sm text-white font-bold hover:bg-[#314934] disabled:opacity-50">Join</button>
                 </article>
               ))}
+              {isSearching && <p className="text-sm text-gray-400 italic">Searching...</p>}
+              {!isSearching && displayedAvailable.length === 0 && (
+                <p className="text-sm text-gray-400 italic">
+                  {sessionSearch.trim() ? "No sessions matched your search." : "No sessions available right now."}
+                </p>
+              )}
             </div>
           </div>
         </section>

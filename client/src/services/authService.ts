@@ -233,6 +233,35 @@ export const getAvailableSessions = async (userId: string): Promise<SessionSumma
   return data.sessions;
 };
 
+export const searchSessions = async (
+  query: string,
+  excludeUserId?: string,
+): Promise<SessionSummary[]> => {
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) return [];
+
+  const params = new URLSearchParams({ q: trimmedQuery });
+  if (excludeUserId) {
+    params.set("excludeUserId", excludeUserId);
+  }
+
+  const response = await fetch(`${SESSION_API_BASE_URL}/search/sessions?${params.toString()}`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
+
+  const data = await parseApiResponse<{ sessions: SessionSummary[]; message?: string }>(
+    response,
+    "Search is temporarily unavailable. Please try again in a moment.",
+  );
+
+  if (!response.ok) {
+    throw new Error(data.message || "Could not search sessions");
+  }
+
+  return data.sessions || [];
+};
+
 export const joinSession = async (
   payload: JoinSessionPayload,
 ): Promise<{ message: string; session: SessionSummary }> => {
