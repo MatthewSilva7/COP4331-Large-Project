@@ -1,0 +1,28 @@
+Flutter mobile (Week 12 lab: show login + register to GTA)
+
+Prerequisites: Install Flutter (https://docs.flutter.dev/get-started) and run
+`flutter doctor` until the Android/iOS toolchain is OK.
+
+1) Generate platform folders (android/, ios/, ...) — run once from this directory:
+   flutter create .
+   This keeps existing lib/ and pubspec.yaml.
+
+2) Install packages:
+   flutter pub get
+
+3) Run on a device or emulator:
+   flutter run
+
+API base URL is set in lib/config.dart (default matches the deployed site in
+client/src/services/authService.ts). To point at a local server:
+   flutter run --dart-define=API_BASE_URL=http://10.0.2.2:5000/api
+Use 10.0.2.2 on Android emulator; 127.0.0.1 works for iOS Simulator.
+
+If you use plain http:// locally, you may need cleartext enabled in
+android/app/src/main/AndroidManifest.xml on the <application> tag:
+   android:usesCleartextTraffic="true"
+
+Important: The server only allows login after email is verified (see
+server/routes/auth.js). After a successful register, either complete your
+team’s email verification flow or set emailVerified to true in MongoDB for a
+test account before demoing login.
