@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'screens/forgot_password_screen.dart';
-import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'theme/study_buddy_theme.dart';
+import 'widgets/auth_gate.dart';
 
 void main() {
   runApp(const Cop4331MobileApp());
@@ -40,9 +40,8 @@ class Cop4331MobileApp extends StatelessWidget {
     return MaterialApp(
       title: 'Study Buddy',
       theme: base,
-      initialRoute: '/',
+      home: const AuthGate(),
       routes: {
-        '/': (_) => const LoginScreen(),
         '/register': (_) => const RegisterScreen(),
         '/forgot': (_) => const ForgotPasswordScreen(),
       },

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../config.dart';
+import 'api_headers.dart';
 import 'auth_client_stub.dart'
     if (dart.library.io) 'auth_client_io.dart'
     if (dart.library.html) 'auth_client_web.dart';
@@ -44,20 +45,12 @@ class AuthApi {
     return Uri.parse('$base$p');
   }
 
-  /// Browser-like agent — some APIs/WAFs treat non-browser clients differently than desktop Chrome.
-  static const Map<String, String> _headers = {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    'User-Agent':
-        'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36 StudyBuddy/1',
-  };
-
   Future<http.Response> _postJson(String path, Map<String, dynamic> body) async {
     try {
       return await _client
           .post(
             _uri(path),
-            headers: _headers,
+            headers: ApiHeaders.json(),
             body: jsonEncode(body),
           )
           .timeout(_kRequestTimeout);

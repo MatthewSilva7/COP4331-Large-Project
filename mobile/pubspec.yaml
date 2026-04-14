@@ -13,6 +13,8 @@ dependencies:
   http: ^1.2.2
   cronet_http: ^1.6.0
   google_fonts: ^6.2.1
+  shared_preferences: ^2.2.3
+  intl: ^0.19.0
 
 dev_dependencies:
   flutter_test:

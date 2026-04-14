@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../services/auth_api.dart';
+import '../services/user_storage.dart';
 import '../theme/study_buddy_theme.dart';
 import '../widgets/study_buddy_auth_shell.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.onLoggedIn});
+
+  /// Called after a successful login (used by [AuthGate] to show the dashboard).
+  final VoidCallback? onLoggedIn;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -39,16 +43,17 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _email.text,
         password: _password.text,
       );
-      if (!mounted) return;
-      final user = data['user'];
-      String welcome = 'Logged in successfully.';
-      if (user is Map && user['firstName'] != null) {
-        welcome = 'Welcome, ${user['firstName']}!';
+      final token = data['token'] as String?;
+      final userRaw = data['user'];
+      if (token == null || userRaw is! Map) {
+        throw StateError('Invalid login response');
       }
-      setState(() {
-        _message = welcome;
-        _messageIsError = false;
-      });
+      await UserStorage.saveAuth(
+        token: token,
+        userJson: Map<String, dynamic>.from(userRaw),
+      );
+      if (!mounted) return;
+      widget.onLoggedIn?.call();
     } on AuthApiException catch (e) {
       if (!mounted) return;
       setState(() {
