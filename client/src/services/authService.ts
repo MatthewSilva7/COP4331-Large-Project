@@ -19,6 +19,10 @@ const SESSION_API_BASE_URL = normalizeBaseUrl(
   env.VITE_SESSION_API_BASE_URL || `${window.location.origin}/api`,
 );
 
+const PROFILE_API_BASE_URL = normalizeBaseUrl(
+    env.VITE_PROFILE_API_BASE_URL || `${window.location.origin}/api`
+);
+
 interface LoginResponse {
   token: string;
   user: AuthUser;
@@ -292,4 +296,44 @@ export const leaveSession = async (payload: JoinSessionPayload): Promise<{ messa
   const data = await parseApiResponse<{ message: string }>(response, "Unexpected response leaving session.");
   if (!response.ok) throw new Error(data.message || "Could not leave session");
   return data;
+};
+
+export const getUserProfile = async (userId: string): Promise<AuthUser> => {
+    const response = await fetch(`${PROFILE_API_BASE_URL}/profile/${userId}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+    });
+
+    const data = await parseApiResponse<AuthUser & { message?: string }>(
+        response,
+        "The profile is temporarily unavailable."
+    );
+
+    if (!response.ok) {
+        throw new Error(data.message || "Could not load profile");
+    }
+
+    return data;
+};
+
+export const updateUserProfile = async (
+    userId: string,
+    profileData: Partial<AuthUser>
+): Promise<AuthUser> => {
+    const response = await fetch(`${PROFILE_API_BASE_URL}/profile/${userId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(profileData),
+    });
+
+    const data = await parseApiResponse<AuthUser & { message?: string }>(
+        response,
+        "Failed to save profile changes."
+    );
+
+    if (!response.ok) {
+        throw new Error(data.message || "Could not update profile");
+    }
+
+    return persistUserProfile(data);
 };

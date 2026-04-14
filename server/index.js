@@ -8,6 +8,7 @@ require('dotenv').config();
 const authRoutes = require('./routes/auth');
 const sessionRoutes = require('./routes/sessions');
 const searchRoutes = require('./routes/search');
+const profileRoutes = require('./routes/profile');
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.use(express.json()); // Allows us to read JSON from the frontend
 app.use('/api/auth', authRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/profile', profileRoutes);
 
 // Database Connection
 mongoose.connect(process.env.MONGO_URI)
