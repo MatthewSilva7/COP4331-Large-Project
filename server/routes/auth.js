@@ -34,8 +34,16 @@ router.post('/login', async (req, res) => {
         
         res.json({
             token,
-            user: { id: user._id, firstName: user.firstName, lastName: user.lastName, email: user.email }
+            user: {
+                id: user._id,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                email: user.email,
+                major: user.major || "",
+                courses: user.courses || []
+            }
         });
+
     } catch (err) {
         res.status(500).json({ message: "Server error" });
     }
