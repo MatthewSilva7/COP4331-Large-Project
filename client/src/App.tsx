@@ -6,7 +6,7 @@ import ResetPasswordForm from "./components/ResetPasswordForm";
 import DashboardPage from "./pages/DashboardPage"; 
 import ProfilePage from "./pages/ProfilePage"; 
 import { AnimatePresence, motion } from "motion/react";
-import { hydrateUserProfile, persistUserProfile } from "./services/authService";
+import { hydrateUserProfile, persistUserProfile, updateUserProfile } from "./services/authService";
 import type { AuthUser } from "./types/auth";
 
 type AuthState = "login" | "register" | "reset" | "dashboard" | "profile";
@@ -30,13 +30,21 @@ export default function App() {
     setAuthState("dashboard");
   };
 
-  const handleSaveProfile = (updatedUser: AuthUser) => {
-    // For now, we just save it to local state and localStorage
-    // This bypasses the backend but keeps the UI "synced" for your demo
-    setLocalUser(updatedUser);
-    persistUserProfile(updatedUser);
-    console.log("Profile saved locally:", updatedUser);
-  };
+    const handleSaveProfile = async (updatedUser: AuthUser) => {
+        try {
+            // Call the backend API 
+            const response = await updateUserProfile(updatedUser.id, updatedUser);
+
+            if (response) {
+                // Update local state and storage only after the backend confirms success
+                setLocalUser(updatedUser);
+                persistUserProfile(updatedUser);
+                console.log("Profile synced to MongoDB successfully");
+            }
+        } catch (err) {
+            console.error("Failed to sync profile to backend:", err);
+        }
+    };
 
   // Get the most up-to-date user data
   const getCurrentUser = (): AuthUser => {
