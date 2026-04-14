@@ -1,9 +1,13 @@
+const dns = require('node:dns');
+dns.setDefaultResultOrder('ipv4first');
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 require('dotenv').config();
 
 const authRoutes = require('./routes/auth');
+const sessionRoutes = require('./routes/sessions');
+const searchRoutes = require('./routes/search');
 
 const app = express();
 
@@ -13,6 +17,8 @@ app.use(express.json()); // Allows us to read JSON from the frontend
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/sessions', sessionRoutes);
+app.use('/api/search', searchRoutes);
 
 // Database Connection
 mongoose.connect(process.env.MONGO_URI)
