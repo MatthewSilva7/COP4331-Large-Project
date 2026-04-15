@@ -124,32 +124,44 @@ router.get('/verify/:token', async (req, res) => {
     }
 });
 
-// 4. FORGOT PASSWORD ROUTE (Rubric Requirement)
+// 4. FORGOT PASSWORD ROUTE (Wired to sgMail)
 router.post('/forgot-password', async (req, res) => {
     try {
         const { email } = req.body;
-        const user = await User.findOne({ email: email.toLowerCase() });
+        const normalizedEmail = String(email || '').trim().toLowerCase();
+        const user = await User.findOne({ email: normalizedEmail });
 
-        if (!user) return res.status(404).json({ message: "User not found" });
+        if (!user) {
+            return res.json({ message: "If an account exists, a reset link was sent." });
+        }
 
         const resetToken = crypto.randomBytes(32).toString('hex');
         user.resetPasswordToken = resetToken;
-        user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+        user.resetPasswordExpires = Date.now() + 3600000;
         await user.save();
 
-        const resetUrl = `${process.env.BASE_URL}/reset-password?token=${resetToken}`;
+        const resetUrl = `${process.env.BASE_URL}/?token=${resetToken}`;
         
         const msg = {
-            to: email,
+            to: normalizedEmail,
             from: process.env.FROM_EMAIL,
-            subject: 'Password Reset Request',
-            html: `<p>Click here to reset your password: <a href="${resetUrl}">${resetUrl}</a></p>`
+            subject: 'Study Buddy Password Reset',
+            html: `
+                <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+                    <h2>Password Reset Request</h2>
+                    <p>Click the button below to reset your Study Buddy password:</p>
+                    <a href="${resetUrl}" style="background-color: #5A5A40; color: white; padding: 12px 25px; text-decoration: none; border-radius: 50px; display: inline-block;">Reset Password</a>
+                    <p style="margin-top: 20px; font-size: 12px; color: #666;">If the button doesn't work, copy and paste this link: ${resetUrl}</p>
+                </div>
+            `
         };
 
         await sgMail.send(msg);
-        res.json({ message: "Reset link sent to your email." });
+        res.json({ message: "Recovery email sent! Check your inbox." });
+
     } catch (err) {
-        res.status(500).json({ message: "Error sending reset email" });
+        console.error(">>> FORGOT PASSWORD SENDGRID ERROR:", err.response ? err.response.body : err);
+        res.status(500).json({ message: "Error sending recovery email" });
     }
 });
 
