@@ -13,6 +13,9 @@ type AuthState = "login" | "register" | "reset" | "dashboard" | "profile";
 
 export default function App() {
   const [authState, setAuthState] = useState<AuthState>(() => {
+    if (new URLSearchParams(window.location.search).get("token")) {
+      return "reset";
+    }
     return localStorage.getItem("token") ? "dashboard" : "login";
   });
 

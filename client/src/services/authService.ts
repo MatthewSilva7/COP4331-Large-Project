@@ -337,3 +337,25 @@ export const updateUserProfile = async (
 
     return persistUserProfile(data);
 };
+
+export const forgotPassword = async (email: string): Promise<{ message: string }> => {
+  const response = await fetch(`${AUTH_API_BASE_URL}/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  const data = await parseApiResponse<{ message?: string }>(response, "Could not send reset email.");
+  if (!response.ok) throw new Error(data.message || "Failed to send reset email");
+  return data as { message: string };
+};
+
+export const resetPassword = async (token: string, password: string): Promise<{ message: string }> => {
+  const response = await fetch(`${AUTH_API_BASE_URL}/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, password }),
+  });
+  const data = await parseApiResponse<{ message?: string }>(response, "Could not reset password.");
+  if (!response.ok) throw new Error(data.message || "Failed to reset password");
+  return data as { message: string };
+};
