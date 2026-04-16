@@ -2,6 +2,7 @@ class SessionSummary {
   const SessionSummary({
     required this.id,
     required this.subject,
+    this.courseName = '',
     required this.location,
     required this.time,
     required this.hostName,
@@ -12,6 +13,7 @@ class SessionSummary {
 
   final String id;
   final String subject;
+  final String courseName;
   final String location;
   final String time;
   final String hostName;
@@ -23,6 +25,7 @@ class SessionSummary {
     return SessionSummary(
       id: _id(json['_id'] ?? json['id']),
       subject: json['subject']?.toString() ?? '',
+      courseName: json['courseName']?.toString() ?? '',
       location: json['location']?.toString() ?? '',
       time: json['time']?.toString() ?? '',
       hostName: json['hostName']?.toString() ?? '',
@@ -46,6 +49,7 @@ class SessionSummary {
     return SessionSummary(
       id: id,
       subject: subject,
+      courseName: courseName,
       location: location,
       time: time,
       hostName: hostName,

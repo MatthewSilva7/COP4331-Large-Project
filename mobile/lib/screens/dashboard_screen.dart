@@ -225,6 +225,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         s.subject,
                         style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
                       ),
+                      if (s.courseName.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          s.courseName,
+                          style: const TextStyle(
+                            color: Color(0xFF665F4A),
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 6),
                       Text(
                         s.time,
@@ -294,7 +305,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          title: Text(s.subject, style: StudyBuddyTheme.titleMedium(context)),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(s.subject, style: StudyBuddyTheme.titleMedium(context)),
+              if (s.courseName.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  s.courseName,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF665F4A),
+                  ),
+                ),
+              ],
+            ],
+          ),
           content: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -415,6 +443,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _showSessionFormDialog({SessionSummary? editing}) async {
     final courseSubject = TextEditingController();
     final courseNumber = TextEditingController();
+    final courseFullTitle = TextEditingController();
     final professor = TextEditingController();
     final location = TextEditingController();
     final dateDisplay = TextEditingController();
@@ -427,6 +456,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final parsed = _parseSubjectParts(editing.subject);
       courseSubject.text = parsed.subject;
       courseNumber.text = parsed.number;
+      courseFullTitle.text = editing.courseName;
       professor.text = parsed.professor;
       location.text = editing.location;
 
@@ -442,7 +472,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setLocal) {
+            InputDecoration _fieldDecoration(
+              String label, {
+              String? hint,
+              Widget? suffixIcon,
+            }) {
+              return InputDecoration(
+                labelText: label,
+                hintText: hint,
+                filled: true,
+                fillColor: const Color(0xFFF8F4EC),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: Color(0xFFD8D0BF)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: Color(0xFFD8D0BF)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: Color(0xFF5A5A40), width: 1.6),
+                ),
+                suffixIcon: suffixIcon,
+              );
+            }
+
             return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+              insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              titlePadding: const EdgeInsets.fromLTRB(24, 22, 24, 4),
+              contentPadding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+              actionsPadding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
               title: Text(
                 editing == null ? 'Host a Session' : 'Edit Session',
                 style: StudyBuddyTheme.titleMedium(context),
@@ -450,18 +512,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
                         Expanded(
                           child: TextField(
                             controller: courseSubject,
-                            decoration: const InputDecoration(labelText: 'Subject (3 letters)'),
                             maxLength: 3,
                             inputFormatters: [
                               FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z]')),
                             ],
                             textCapitalization: TextCapitalization.characters,
+                            decoration: _fieldDecoration(
+                              'Subject',
+                              hint: 'COP',
+                            ).copyWith(
+                              counterText: '',
+                              helperText: '3 letters',
+                              helperStyle: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF8A826B),
+                              ),
+                            ),
                             onChanged: (v) {
                               final u = v.toUpperCase();
                               if (u != v) {
@@ -473,130 +546,209 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             },
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: TextField(
                             controller: courseNumber,
-                            decoration: const InputDecoration(labelText: 'Number'),
-                            keyboardType: TextInputType.number,
                             maxLength: 4,
+                            keyboardType: TextInputType.number,
                             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                            decoration: _fieldDecoration(
+                              'Course number',
+                              hint: '4331',
+                            ).copyWith(
+                              counterText: '',
+                              helperText: '4 digits',
+                              helperStyle: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF8A826B),
+                              ),
+                            ),
                           ),
                         ),
                       ],
                     ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: courseFullTitle,
+                      decoration: _fieldDecoration(
+                        'Full course name (optional)',
+                        hint: 'e.g. Biology 1',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     TextField(
                       controller: professor,
-                      decoration: const InputDecoration(labelText: 'Professor last name'),
+                      decoration: _fieldDecoration(
+                        'Professor last name',
+                        hint: 'Zhu',
+                      ),
                     ),
+                    const SizedBox(height: 12),
                     TextField(
                       controller: location,
-                      decoration: const InputDecoration(labelText: 'Location'),
+                      decoration: _fieldDecoration(
+                        'Location',
+                        hint: 'John T. Washington 205',
+                      ),
                     ),
-                    TextField(
-                      controller: dateDisplay,
-                      decoration: const InputDecoration(labelText: 'Date'),
-                      readOnly: true,
-                      onTap: () async {
-                        final now = DateTime.now();
-                        DateTime initialDate = now;
-                        if (sessionDate.isNotEmpty) {
-                          initialDate = DateTime.tryParse('${sessionDate}T12:00:00') ?? now;
-                        }
-                        final d = await showDatePicker(
-                          context: context,
-                          initialDate: initialDate,
-                          firstDate: now,
-                          lastDate: now.add(const Duration(days: 365)),
-                        );
-                        if (d != null) {
-                          sessionDate =
-                              '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-                          dateDisplay.text = sessionDate;
-                          setLocal(() {});
-                        }
-                      },
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: dateDisplay,
+                            readOnly: true,
+                            decoration: _fieldDecoration(
+                              'Date',
+                              hint: 'Select date',
+                              suffixIcon:
+                                  const Icon(Icons.calendar_today_outlined, size: 18),
+                            ),
+                            onTap: () async {
+                              final now = DateTime.now();
+                              DateTime initialDate = now;
+                              if (sessionDate.isNotEmpty) {
+                                initialDate =
+                                    DateTime.tryParse('${sessionDate}T12:00:00') ?? now;
+                              }
+                              final d = await showDatePicker(
+                                context: context,
+                                initialDate: initialDate,
+                                firstDate: now,
+                                lastDate: now.add(const Duration(days: 365)),
+                              );
+                              if (d != null) {
+                                sessionDate =
+                                    '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+                                dateDisplay.text = sessionDate;
+                                setLocal(() {});
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: timeDisplay,
+                            readOnly: true,
+                            decoration: _fieldDecoration(
+                              'Time',
+                              hint: 'Select time',
+                              suffixIcon: const Icon(Icons.access_time, size: 18),
+                            ),
+                            onTap: () async {
+                              final initial = sessionTime.isNotEmpty
+                                  ? () {
+                                      final p = sessionTime.split(':');
+                                      final h = int.tryParse(p.isNotEmpty ? p[0] : '') ??
+                                          TimeOfDay.now().hour;
+                                      final m = int.tryParse(p.length > 1 ? p[1] : '') ??
+                                          TimeOfDay.now().minute;
+                                      return TimeOfDay(hour: h, minute: m);
+                                    }()
+                                  : TimeOfDay.now();
+                              final t = await showTimePicker(
+                                context: context,
+                                initialTime: initial,
+                              );
+                              if (t != null) {
+                                sessionTime =
+                                    '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+                                timeDisplay.text = sessionTime;
+                                setLocal(() {});
+                              }
+                            },
+                          ),
+                        ),
+                      ],
                     ),
-                    TextField(
-                      controller: timeDisplay,
-                      decoration: const InputDecoration(labelText: 'Time'),
-                      readOnly: true,
-                      onTap: () async {
-                        final initial = sessionTime.isNotEmpty
-                            ? () {
-                                final p = sessionTime.split(':');
-                                final h = int.tryParse(p.isNotEmpty ? p[0] : '') ?? TimeOfDay.now().hour;
-                                final m = int.tryParse(p.length > 1 ? p[1] : '') ?? TimeOfDay.now().minute;
-                                return TimeOfDay(hour: h, minute: m);
-                              }()
-                            : TimeOfDay.now();
-                        final t = await showTimePicker(
-                          context: context,
-                          initialTime: initial,
-                        );
-                        if (t != null) {
-                          sessionTime =
-                              '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-                          timeDisplay.text = sessionTime;
-                          setLocal(() {});
-                        }
-                      },
-                    ),
+                    const SizedBox(height: 4),
                   ],
                 ),
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-                FilledButton(
-                  onPressed: submitting
-                      ? null
-                      : () async {
-                          if (courseSubject.text.length != 3 ||
-                              courseNumber.text.length != 4 ||
-                              professor.text.isEmpty ||
-                              location.text.isEmpty ||
-                              sessionDate.isEmpty ||
-                              sessionTime.isEmpty) {
-                            return;
-                          }
-                          setLocal(() => submitting = true);
-                          final formattedSubject =
-                              '${courseSubject.text.toUpperCase()} ${courseNumber.text} - Prof. ${professor.text.trim()}';
-                          final dt = DateTime.tryParse('${sessionDate}T12:00:00');
-                          final displayTime = dt != null
-                              ? '${DateFormat.MMMd().format(dt)}, $sessionTime'
-                              : sessionTime;
-                          try {
-                            if (editing != null) {
-                              await _sessionApi.updateSession(
-                                sessionId: editing.id,
-                                subject: formattedSubject,
-                                location: location.text.trim(),
-                                time: displayTime,
-                                userId: _user.id,
-                              );
-                            } else {
-                              await _sessionApi.createSession(
-                                subject: formattedSubject,
-                                location: location.text.trim(),
-                                time: displayTime,
-                                hostName: '${_user.firstName} ${_user.lastName}',
-                                userId: _user.id,
-                              );
-                            }
-                            if (ctx.mounted) Navigator.pop(ctx);
-                            await _load();
-                          } catch (e) {
-                            if (ctx.mounted) {
-                              ScaffoldMessenger.of(ctx).showSnackBar(
-                                SnackBar(content: Text(e.toString())),
-                              );
-                            }
-                          } finally {
-                            if (context.mounted) setLocal(() => submitting = false);
-                          }
-                        },
-                  child: Text(editing == null ? 'Create' : 'Save'),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: submitting ? null : () => Navigator.pop(ctx),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          side: const BorderSide(color: Color(0xFFB9AF9B)),
+                          foregroundColor: const Color(0xFF3A3529),
+                        ),
+                        child: const Text('Cancel'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: submitting
+                            ? null
+                            : () async {
+                                if (courseSubject.text.length != 3 ||
+                                    courseNumber.text.length != 4 ||
+                                    professor.text.isEmpty ||
+                                    location.text.isEmpty ||
+                                    sessionDate.isEmpty ||
+                                    sessionTime.isEmpty) {
+                                  return;
+                                }
+                                setLocal(() => submitting = true);
+                                final formattedSubject =
+                                    '${courseSubject.text.toUpperCase()} ${courseNumber.text} - Prof. ${professor.text.trim()}';
+                                final dt = DateTime.tryParse('${sessionDate}T12:00:00');
+                                final displayTime = dt != null
+                                    ? '${DateFormat.MMMd().format(dt)}, $sessionTime'
+                                    : sessionTime;
+                                try {
+                                  if (editing != null) {
+                                    await _sessionApi.updateSession(
+                                      sessionId: editing.id,
+                                      subject: formattedSubject,
+                                      courseName: courseFullTitle.text.trim(),
+                                      location: location.text.trim(),
+                                      time: displayTime,
+                                      userId: _user.id,
+                                    );
+                                  } else {
+                                    await _sessionApi.createSession(
+                                      subject: formattedSubject,
+                                      courseName: courseFullTitle.text.trim(),
+                                      location: location.text.trim(),
+                                      time: displayTime,
+                                      hostName: '${_user.firstName} ${_user.lastName}',
+                                      userId: _user.id,
+                                    );
+                                  }
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                  await _load();
+                                } catch (e) {
+                                  if (ctx.mounted) {
+                                    ScaffoldMessenger.of(ctx).showSnackBar(
+                                      SnackBar(content: Text(e.toString())),
+                                    );
+                                  }
+                                } finally {
+                                  if (context.mounted) setLocal(() => submitting = false);
+                                }
+                              },
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          backgroundColor: StudyBuddyTheme.olive,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: Text(editing == null ? 'Create' : 'Save'),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             );
@@ -823,9 +975,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
-                child: Text(
-                  s.subject,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      s.subject,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    if (s.courseName.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        s.courseName,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: Color(0xFF665F4A),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               if (badge != null || trailing != null)
