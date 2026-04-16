@@ -200,6 +200,80 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  Future<void> _showSessionActions(SessionSummary s) async {
+    final isHost = _isHost(s) && !s.isJoined;
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: const Color(0xFFFCFAF4),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 8, 4, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        s.subject,
+                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        s.time,
+                        style: const TextStyle(color: Color(0xFF6D654F), fontSize: 12.5),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                if (isHost)
+                  ListTile(
+                    leading: const Icon(Icons.edit),
+                    title: const Text('Edit session'),
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      await _showSessionFormDialog(editing: s);
+                    },
+                  ),
+                if (s.isJoined)
+                  ListTile(
+                    leading: const Icon(Icons.exit_to_app, color: Colors.red),
+                    title: const Text('Leave group'),
+                    textColor: Colors.red,
+                    iconColor: Colors.red,
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      await _leave(s);
+                    },
+                  ),
+                if (isHost)
+                  ListTile(
+                    leading: const Icon(Icons.delete, color: Colors.red),
+                    title: const Text('Delete session'),
+                    textColor: Colors.red,
+                    iconColor: Colors.red,
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      await _delete(s);
+                    },
+                  ),
+                const SizedBox(height: 6),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _openProfile() async {
     final updated = await Navigator.push<AuthUser>(
       context,
@@ -261,6 +335,84 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _showHostDialog() async {
+    await _showSessionFormDialog();
+  }
+
+  bool _isHost(SessionSummary s) => s.userId == _user.id;
+
+  Widget _statusChip(SessionSummary s) {
+    final joined = s.isJoined;
+    final host = _isHost(s) && !joined;
+    final label = joined ? 'JOINED' : (host ? 'HOST' : '');
+    if (label.isEmpty) return const SizedBox.shrink();
+
+    final bg = joined ? const Color(0xFFDDEBFF) : const Color(0xFFF2EFE6);
+    final fg = joined ? const Color(0xFF1F5FA8) : const Color(0xFF665F4A);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: fg.withOpacity(0.18)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.8,
+          color: fg,
+        ),
+      ),
+    );
+  }
+
+  ({String subject, String number, String professor}) _parseSubjectParts(String subject) {
+    final match = RegExp(r'^([a-zA-Z]+)\s+(\d+)\s+-\s+Prof\.\s+(.*)$').firstMatch(subject.trim());
+    if (match != null) {
+      return (subject: match.group(1) ?? '', number: match.group(2) ?? '', professor: match.group(3) ?? '');
+    }
+    final sub = subject.trim();
+    return (
+      subject: sub.length >= 3 ? sub.substring(0, 3) : sub,
+      number: '',
+      professor: sub,
+    );
+  }
+
+  ({String dateIso, String time24}) _parseSessionTimeParts(String displayTime) {
+    final raw = displayTime.trim();
+    if (!raw.contains(',')) return (dateIso: '', time24: '');
+    final parts = raw.split(',');
+    if (parts.length < 2) return (dateIso: '', time24: '');
+    final datePart = parts[0].trim(); // e.g. "Apr 2"
+    final timePart = parts.sublist(1).join(',').trim(); // robust if commas appear
+
+    String dateIso = '';
+    try {
+      final year = DateTime.now().year;
+      final d = DateFormat('MMM d yyyy').parseStrict('$datePart $year');
+      dateIso =
+          '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    } catch (_) {
+      dateIso = '';
+    }
+
+    String time24 = '';
+    try {
+      final t = timePart.toUpperCase().contains('AM') || timePart.toUpperCase().contains('PM')
+          ? DateFormat('h:mm a').parseStrict(timePart)
+          : DateFormat('HH:mm').parseStrict(timePart);
+      time24 = '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      time24 = '';
+    }
+
+    return (dateIso: dateIso, time24: time24);
+  }
+
+  Future<void> _showSessionFormDialog({SessionSummary? editing}) async {
     final courseSubject = TextEditingController();
     final courseNumber = TextEditingController();
     final professor = TextEditingController();
@@ -271,13 +423,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
     var sessionTime = '';
     var submitting = false;
 
+    if (editing != null) {
+      final parsed = _parseSubjectParts(editing.subject);
+      courseSubject.text = parsed.subject;
+      courseNumber.text = parsed.number;
+      professor.text = parsed.professor;
+      location.text = editing.location;
+
+      final t = _parseSessionTimeParts(editing.time);
+      sessionDate = t.dateIso;
+      sessionTime = t.time24;
+      dateDisplay.text = sessionDate;
+      timeDisplay.text = sessionTime;
+    }
+
     await showDialog<void>(
       context: context,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setLocal) {
             return AlertDialog(
-              title: Text('Host a Session', style: StudyBuddyTheme.titleMedium(context)),
+              title: Text(
+                editing == null ? 'Host a Session' : 'Edit Session',
+                style: StudyBuddyTheme.titleMedium(context),
+              ),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -330,9 +499,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       readOnly: true,
                       onTap: () async {
                         final now = DateTime.now();
+                        DateTime initialDate = now;
+                        if (sessionDate.isNotEmpty) {
+                          initialDate = DateTime.tryParse('${sessionDate}T12:00:00') ?? now;
+                        }
                         final d = await showDatePicker(
                           context: context,
-                          initialDate: now,
+                          initialDate: initialDate,
                           firstDate: now,
                           lastDate: now.add(const Duration(days: 365)),
                         );
@@ -349,9 +522,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       decoration: const InputDecoration(labelText: 'Time'),
                       readOnly: true,
                       onTap: () async {
+                        final initial = sessionTime.isNotEmpty
+                            ? () {
+                                final p = sessionTime.split(':');
+                                final h = int.tryParse(p.isNotEmpty ? p[0] : '') ?? TimeOfDay.now().hour;
+                                final m = int.tryParse(p.length > 1 ? p[1] : '') ?? TimeOfDay.now().minute;
+                                return TimeOfDay(hour: h, minute: m);
+                              }()
+                            : TimeOfDay.now();
                         final t = await showTimePicker(
                           context: context,
-                          initialTime: TimeOfDay.now(),
+                          initialTime: initial,
                         );
                         if (t != null) {
                           sessionTime =
@@ -386,13 +567,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               ? '${DateFormat.MMMd().format(dt)}, $sessionTime'
                               : sessionTime;
                           try {
-                            await _sessionApi.createSession(
-                              subject: formattedSubject,
-                              location: location.text.trim(),
-                              time: displayTime,
-                              hostName: '${_user.firstName} ${_user.lastName}',
-                              userId: _user.id,
-                            );
+                            if (editing != null) {
+                              await _sessionApi.updateSession(
+                                sessionId: editing.id,
+                                subject: formattedSubject,
+                                location: location.text.trim(),
+                                time: displayTime,
+                                userId: _user.id,
+                              );
+                            } else {
+                              await _sessionApi.createSession(
+                                subject: formattedSubject,
+                                location: location.text.trim(),
+                                time: displayTime,
+                                hostName: '${_user.firstName} ${_user.lastName}',
+                                userId: _user.id,
+                              );
+                            }
                             if (ctx.mounted) Navigator.pop(ctx);
                             await _load();
                           } catch (e) {
@@ -405,7 +596,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             if (context.mounted) setLocal(() => submitting = false);
                           }
                         },
-                  child: const Text('Create'),
+                  child: Text(editing == null ? 'Create' : 'Save'),
                 ),
               ],
             );
@@ -474,6 +665,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           const SizedBox(width: 12),
                           OutlinedButton(
                             onPressed: _openProfile,
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(0, 52),
+                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                              side: const BorderSide(color: Color(0xFF8A826B), width: 1.2),
+                              foregroundColor: const Color(0xFF3A3529),
+                            ),
                             child: const Text('Profile'),
                           ),
                         ],
@@ -508,21 +706,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           children: _mySchedule
                               .map(
                                 (s) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
+                                  padding: const EdgeInsets.only(bottom: 16),
                                   child: _sessionTile(
                                     s,
                                     onTap: () => _showParticipants(s),
-                                    trailing: s.isJoined
-                                        ? TextButton(
-                                            onPressed: () => _leave(s),
-                                            child: const Text('Leave'),
-                                          )
-                                        : TextButton(
-                                            onPressed: () => _delete(s),
-                                            style: TextButton.styleFrom(
-                                                foregroundColor: Colors.red),
-                                            child: const Text('Delete'),
-                                          ),
+                                    badge: _statusChip(s),
+                                    trailing: IconButton(
+                                      tooltip: 'Actions',
+                                      visualDensity: VisualDensity.compact,
+                                      onPressed: () => _showSessionActions(s),
+                                      icon: const Icon(Icons.more_horiz),
+                                      color: const Color(0xFF665F4A),
+                                    ),
                                   ),
                                 ),
                               )
@@ -616,26 +811,63 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _sessionTile(
     SessionSummary s, {
     VoidCallback? onTap,
+    Widget? badge,
     Widget? trailing,
   }) {
-    final inner = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                s.subject,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+    final inner = Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Text(
+                  s.subject,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
               ),
+              if (badge != null || trailing != null)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (badge != null) badge,
+                    if (badge != null && trailing != null) const SizedBox(width: 6),
+                    if (trailing != null) trailing,
+                  ],
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            s.time,
+            style: const TextStyle(
+              color: Color(0xFF6D654F),
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
             ),
-            if (trailing != null) trailing,
-          ],
-        ),
-        Text(s.time, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-        Text('📍 ${s.location}', style: const TextStyle(fontSize: 12)),
-        Text('Hosted by ${s.hostName}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-      ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '📍 ${s.location}',
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: Color(0xFF5F5946),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Hosted by ${s.hostName}',
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFF5F5946),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
     );
     if (onTap != null) {
       return InkWell(onTap: onTap, child: inner);
