@@ -65,12 +65,15 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
         getAvailableSessions(user.id),
       ]);
       
-      // FIX: Properly separate hosted vs. joined sessions on initial load
       const allMySessions = data.sessions || [];
       setHostedSessions(allMySessions.filter(s => !s.isJoined));
       setJoinedSessions(allMySessions.filter(s => s.isJoined));
 
-      const filteredAvailable = (available || []).filter(s => s.userId !== user.id);
+      // FIX: Sort available sessions chronologically on initial load too
+      const filteredAvailable = (available || [])
+        .filter(s => s.userId !== user.id)
+        .sort((a, b) => getTimeValue(a) - getTimeValue(b));
+        
       setAvailableSessions(filteredAvailable);
     } catch (err: any) {
       setError(err.message || "Could not load dashboard data.");
@@ -181,33 +184,30 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
     setIsHostSessionOpen(true);
   };
 
-  const handleSaveSession = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    setFormError("");
-
+  const handleLeaveSession = async (session: SessionSummary) => {
     try {
-      const formattedSubject = `${courseSubject.toUpperCase()} ${courseNumber} - Prof. ${professorLastName}`;
-      const displayTime = `${new Date(sessionDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${sessionTime}`;
+      await leaveSession({ sessionId: session._id, userId: user.id });
+      
+      // 1. Remove from your schedule
+      setJoinedSessions(prev => prev.filter(s => s._id !== session._id));
+      
+      // 2. FIX: Remove yourself from the session's participant list
+      const updatedParticipants = session.participants?.filter((p: any) => p._id !== user.id) || [];
+      const sessionToReturn = { 
+        ...session, 
+        isJoined: false, 
+        participants: updatedParticipants 
+      };
 
-      if (editingSession) {
-        await updateSession(editingSession._id, {
-          subject: formattedSubject, location, time: displayTime, userId: user.id
-        });
-      } else {
-        await createSession({
-          subject: formattedSubject, location, time: displayTime,
-          hostName: `${user.firstName} ${user.lastName}`, userId: user.id,
-        });
-      }
+      // 3. FIX: Add back to available sessions AND sort it chronologically
+      setAvailableSessions(prev => {
+        const newList = [...prev, sessionToReturn];
+        return newList.sort((a, b) => getTimeValue(a) - getTimeValue(b));
+      });
 
-      setIsHostSessionOpen(false);
-      setEditingSession(null);
-      await loadDashboard(false);
+      if (viewingParticipants?._id === session._id) setViewingParticipants(null);
     } catch (err: any) {
-      setFormError(err.message || "Could not save session.");
-    } finally {
-      setIsSubmitting(false);
+      alert("Could not leave group.");
     }
   };
 
