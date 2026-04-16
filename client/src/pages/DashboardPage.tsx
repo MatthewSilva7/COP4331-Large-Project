@@ -7,7 +7,7 @@ import {
   joinSession,
   leaveSession,
   searchSessions,
-  updateSession, // NEW IMPORT
+  updateSession,
 } from "../services/authService";
 import type { AuthUser, DashboardData, SessionSummary } from "../types/auth";
 
@@ -16,6 +16,21 @@ interface DashboardPageProps {
   onOpenProfile: () => void;
   onLogout: () => void;
 }
+
+// NEW HELPER: Converts "Apr 13, 14:30" back to "2026-04-13" and "14:30" for the HTML inputs
+const parseSessionTime = (timeString: string) => {
+  try {
+    const [monthDay, timeStr] = timeString.split(", ");
+    const currentYear = new Date().getFullYear(); // Assumes current year for the UI
+    const d = new Date(`${monthDay}, ${currentYear}`);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return { dateVal: `${yyyy}-${mm}-${dd}`, timeVal: timeStr };
+  } catch {
+    return { dateVal: "", timeVal: "" };
+  }
+};
 
 export default function DashboardPage({ user, onOpenProfile, onLogout }: DashboardPageProps) {
   const [hostedSessions, setHostedSessions] = useState<SessionSummary[]>([]);
@@ -27,7 +42,7 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
   // Modal States
   const [isHostSessionOpen, setIsHostSessionOpen] = useState(false);
   const [viewingParticipants, setViewingParticipants] = useState<SessionSummary | null>(null);
-  const [editingSession, setEditingSession] = useState<SessionSummary | null>(null); // NEW STATE
+  const [editingSession, setEditingSession] = useState<SessionSummary | null>(null);
   const [isJoiningSessionId, setIsJoiningSessionId] = useState("");
   
   // Form State
@@ -130,7 +145,6 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
     }
   };
 
-  // NEW: Open modal in "Create" mode
   const openCreateModal = () => {
     setEditingSession(null);
     setCourseSubject(""); setCourseNumber(""); setProfessorLastName(""); setLocation(""); setSessionDate(""); setSessionTime("");
@@ -138,12 +152,11 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
     setIsHostSessionOpen(true);
   };
 
-  // NEW: Open modal in "Edit" mode and pre-fill data
+  // UPDATED: Now parses and fully pre-fills the Date and Time fields
   const openEditModal = (session: SessionSummary) => {
     setEditingSession(session);
     setFormError("");
     
-    // Parse the subject back into parts
     const match = session.subject.match(/^([a-zA-Z]+)\s+(\d+)\s+-\s+Prof\.\s+(.*)$/i);
     if (match) {
       setCourseSubject(match[1]);
@@ -156,13 +169,14 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
     }
     
     setLocation(session.location || "");
-    // Clear date/time to let them pick a new one, or leave blank to keep original
-    setSessionDate("");
-    setSessionTime("");
+    
+    const { dateVal, timeVal } = parseSessionTime(session.time);
+    setSessionDate(dateVal);
+    setSessionTime(timeVal);
+    
     setIsHostSessionOpen(true);
   };
 
-  // UPDATED: Save handles both Create and Update
   const handleSaveSession = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -170,12 +184,7 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
 
     try {
       const formattedSubject = `${courseSubject.toUpperCase()} ${courseNumber} - Prof. ${professorLastName}`;
-      
-      // If date/time are provided, format them. If blank (and editing), keep the old time.
-      let displayTime = editingSession?.time || ""; 
-      if (sessionDate && sessionTime) {
-        displayTime = `${new Date(sessionDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${sessionTime}`;
-      }
+      const displayTime = `${new Date(sessionDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${sessionTime}`;
 
       if (editingSession) {
         await updateSession(editingSession._id, {
@@ -236,7 +245,6 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
                     <h3 className="font-bold cursor-pointer hover:underline text-[#201c15]" onClick={() => setViewingParticipants(s)}>{s.subject}</h3>
                     
                     <div className="flex items-center gap-2">
-                      {/* NEW: Edit Pencil Icon */}
                       {!s.isJoined && (
                         <button onClick={(e) => { e.stopPropagation(); openEditModal(s); }} className="text-[#a49d8c] hover:text-[#5a5a40] transition-colors" title="Edit Session">
                           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
@@ -316,7 +324,6 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
       {isHostSessionOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1f1a12]/55 px-4 backdrop-blur-sm" onClick={() => setIsHostSessionOpen(false)}>
           <div className="w-full max-w-lg rounded-[2.5rem] border border-[#e6dfd0] bg-[#fffdf8] p-8 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            {/* Dynamic Title */}
             <h2 className="font-serif text-3xl font-semibold text-[#201c15] mb-6">
               {editingSession ? "Edit Session" : "Host a Session"}
             </h2>
@@ -336,16 +343,10 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
               <input type="text" required value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location" className="w-full rounded-xl border p-3 text-sm focus:ring-2 focus:ring-[#5A5A40] outline-none" />
               
               <div className="grid grid-cols-2 gap-4">
-                <input type="date" required={!editingSession} value={sessionDate} onChange={(e) => setSessionDate(e.target.value)} className="rounded-xl border p-3 text-sm outline-none" />
-                <input type="time" required={!editingSession} value={sessionTime} onChange={(e) => setSessionTime(e.target.value)} className="rounded-xl border p-3 text-sm outline-none" />
+                <input type="date" required value={sessionDate} onChange={(e) => setSessionDate(e.target.value)} className="rounded-xl border p-3 text-sm outline-none" />
+                <input type="time" required value={sessionTime} onChange={(e) => setSessionTime(e.target.value)} className="rounded-xl border p-3 text-sm outline-none" />
               </div>
               
-              {editingSession && (
-                <p className="text-xs text-gray-500 italic mt-1 px-1">
-                  Leave date and time blank to keep: <span className="font-semibold">{editingSession.time}</span>
-                </p>
-              )}
-
               <button type="submit" disabled={isSubmitting} className="w-full rounded-full bg-[#5A5A40] py-3 text-white font-bold hover:bg-[#4a4a34]">
                 {isSubmitting ? "Saving..." : (editingSession ? "Save Changes" : "Host Session")}
               </button>
