@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   createSession,
+  deleteSession,
   getAvailableSessions,
   getDashboardData,
   joinSession,
@@ -125,6 +126,16 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
     }
   };
 
+  const handleDeleteSession = async (session: SessionSummary) => {
+    if (!window.confirm("Delete this study session permanently? This cannot be undone.")) return;
+    try {
+      await deleteSession(session._id, user.id);
+      setHostedSessions(prev => prev.filter(s => s._id !== session._id));
+    } catch {
+      alert("Could not delete session.");
+    }
+  };
+
   const handleCreateSession = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -196,6 +207,9 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
                   <p className="text-[10px] text-[#7d765f] mt-1 italic font-medium">📍 {s.location}</p>
                   {s.isJoined && (
                     <button onClick={() => handleLeaveSession(s)} className="mt-3 w-full py-1.5 rounded-xl border border-red-200 text-red-500 text-[10px] font-bold uppercase hover:bg-red-50 transition-colors">Leave Group</button>
+                  )}
+                  {!s.isJoined && (
+                    <button onClick={() => handleDeleteSession(s)} className="mt-3 w-full py-1.5 rounded-xl border border-red-300 text-red-600 text-[10px] font-bold uppercase hover:bg-red-50 transition-colors">Delete Session</button>
                   )}
                 </div>
               ))}

@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const Session = require('../models/Session');
 
 // 1. GET: Sessions the user hosts OR has joined
@@ -106,6 +107,32 @@ router.post('/leave', async (req, res) => {
         res.status(200).json({ message: "Successfully left the session!", session });
     } catch (err) {
         res.status(500).json({ message: "Error leaving session" });
+    }
+});
+
+// 6. DELETE: Delete a session (host only)
+router.delete('/:sessionId', async (req, res) => {
+    try {
+        const { sessionId } = req.params;
+        const { userId } = req.body;
+
+        if (!mongoose.Types.ObjectId.isValid(sessionId)) {
+            return res.status(400).json({ message: "Invalid session ID" });
+        }
+
+        const session = await Session.findById(sessionId);
+        if (!session) {
+            return res.status(404).json({ message: "Session not found" });
+        }
+
+        if (session.userId.toString() !== userId) {
+            return res.status(403).json({ message: "Only the host can delete this session" });
+        }
+
+        await Session.findByIdAndDelete(sessionId);
+        res.status(200).json({ message: "Session deleted" });
+    } catch (err) {
+        res.status(500).json({ message: "Server error" });
     }
 });
 

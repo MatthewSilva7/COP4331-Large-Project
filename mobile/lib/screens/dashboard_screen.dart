@@ -164,6 +164,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  Future<void> _delete(SessionSummary session) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Session'),
+        content: const Text(
+            'Delete this study session permanently? This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await _sessionApi.deleteSession(
+          sessionId: session.id, userId: _user.id);
+      setState(() {
+        _hosted = _hosted.where((s) => s.id != session.id).toList();
+      });
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not delete session.')),
+        );
+      }
+    }
+  }
+
   Future<void> _openProfile() async {
     final updated = await Navigator.push<AuthUser>(
       context,
@@ -481,7 +517,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                             onPressed: () => _leave(s),
                                             child: const Text('Leave'),
                                           )
-                                        : null,
+                                        : TextButton(
+                                            onPressed: () => _delete(s),
+                                            style: TextButton.styleFrom(
+                                                foregroundColor: Colors.red),
+                                            child: const Text('Delete'),
+                                          ),
                                   ),
                                 ),
                               )

@@ -359,3 +359,14 @@ export const resetPassword = async (token: string, password: string): Promise<{ 
   if (!response.ok) throw new Error(data.message || "Failed to reset password");
   return data as { message: string };
 };
+
+export const deleteSession = async (sessionId: string, userId: string): Promise<{ message: string }> => {
+  const response = await fetch(`${SESSION_API_BASE_URL}/sessions/${sessionId}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId }),
+  });
+  const data = await parseApiResponse<{ message: string }>(response, "Unexpected response deleting session.");
+  if (!response.ok) throw new Error(data.message || "Could not delete session");
+  return data;
+};

@@ -138,6 +138,20 @@ class SessionApi {
     throw SessionApiException(body['message']?.toString() ?? 'Could not leave');
   }
 
+  Future<void> deleteSession({
+    required String sessionId,
+    required String userId,
+  }) async {
+    final res = await _client.delete(
+      _uri('/sessions/$sessionId'),
+      headers: ApiHeaders.json(),
+      body: jsonEncode({'userId': userId}),
+    );
+    final body = _decode(res);
+    if (res.statusCode >= 200 && res.statusCode < 300) return;
+    throw SessionApiException(body['message']?.toString() ?? 'Could not delete session');
+  }
+
   Map<String, dynamic> _decode(http.Response res) {
     try {
       final decoded = jsonDecode(res.body);
