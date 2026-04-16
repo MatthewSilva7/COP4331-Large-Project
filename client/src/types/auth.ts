@@ -15,7 +15,7 @@ export interface AuthUser {
 export interface SessionSummary {
   _id: string;
   subject: string;
-  courseName?: string; // ADDED
+  courseName: string; // ADDED
   location: string;
   time: string;
   hostName: string;
@@ -40,7 +40,7 @@ export interface DashboardData {
 
 export interface CreateSessionPayload {
   subject: string;
-  courseName?: string; // ADDED
+  courseName: string; // ADDED
   location: string;
   time: string;
   hostName: string;

@@ -9,6 +9,7 @@ const SessionSchema = new mongoose.Schema({
     // NEW FIELD
     courseName: {
         type: String,
+        required: true,
         trim: true
     },
     location: {

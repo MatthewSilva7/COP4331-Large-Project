@@ -349,7 +349,7 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
                 <input type="text" required value={courseSubject} onChange={(e) => setCourseSubject(e.target.value.toUpperCase().slice(0,3))} placeholder="Subject (COP)" className="rounded-xl border p-3 text-sm outline-none" />
                 <input type="text" required value={courseNumber} onChange={(e) => setCourseNumber(e.target.value.replace(/\D/g, "").slice(0,4))} placeholder="Number (4331)" className="rounded-xl border p-3 text-sm outline-none" />
               </div>
-              <input type="text" value={courseFullTitle} onChange={(e) => setCourseFullTitle(e.target.value)} placeholder="Full Course Name (e.g. Biology 1) - Optional" className="w-full rounded-xl border p-3 text-sm outline-none focus:ring-2 focus:ring-[#5A5A40]" />
+              <input type="text" required value={courseFullTitle} onChange={(e) => setCourseFullTitle(e.target.value)} placeholder="Full Course Name (e.g. Biology 1)" className="w-full rounded-xl border p-3 text-sm outline-none focus:ring-2 focus:ring-[#5A5A40]" />
               <input type="text" required value={professorLastName} onChange={(e) => setProfessorLastName(e.target.value)} placeholder="Professor Last Name" className="w-full rounded-xl border p-3 text-sm outline-none" />
               <input type="text" required value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location" className="w-full rounded-xl border p-3 text-sm outline-none" />
               <div className="grid grid-cols-2 gap-4">
