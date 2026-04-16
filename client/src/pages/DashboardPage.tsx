@@ -17,6 +17,7 @@ interface DashboardPageProps {
   onLogout: () => void;
 }
 
+// Helper to convert DB time string back to HTML input format
 const parseSessionTime = (timeString: string) => {
   try {
     const [monthDay, timeStr] = timeString.split(", ");
@@ -47,6 +48,7 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
   // Form State
   const [courseSubject, setCourseSubject] = useState("");
   const [courseNumber, setCourseNumber] = useState("");
+  const [courseFullTitle, setCourseFullTitle] = useState(""); // NEW FIELD
   const [professorLastName, setProfessorLastName] = useState("");
   const [location, setLocation] = useState("");
   const [sessionDate, setSessionDate] = useState("");
@@ -133,21 +135,13 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
   const handleLeaveSession = async (session: SessionSummary) => {
     try {
       await leaveSession({ sessionId: session._id, userId: user.id });
-      
       setJoinedSessions(prev => prev.filter(s => s._id !== session._id));
-      
       const updatedParticipants = session.participants?.filter((p: any) => p._id !== user.id) || [];
-      const sessionToReturn = { 
-        ...session, 
-        isJoined: false, 
-        participants: updatedParticipants 
-      };
-
+      const sessionToReturn = { ...session, isJoined: false, participants: updatedParticipants };
       setAvailableSessions(prev => {
         const newList = [...prev, sessionToReturn];
         return newList.sort((a, b) => getTimeValue(a) - getTimeValue(b));
       });
-
       if (viewingParticipants?._id === session._id) setViewingParticipants(null);
     } catch (err: any) {
       alert("Could not leave group.");
@@ -155,7 +149,7 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
   };
 
   const handleDeleteSession = async (session: SessionSummary) => {
-    if (!window.confirm("Delete this study session permanently? This cannot be undone.")) return;
+    if (!window.confirm("Delete this study session?")) return;
     try {
       await deleteSession(session._id, user.id);
       setHostedSessions(prev => prev.filter(s => s._id !== session._id));
@@ -166,7 +160,8 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
 
   const openCreateModal = () => {
     setEditingSession(null);
-    setCourseSubject(""); setCourseNumber(""); setProfessorLastName(""); setLocation(""); setSessionDate(""); setSessionTime("");
+    setCourseSubject(""); setCourseNumber(""); setCourseFullTitle(""); setProfessorLastName(""); 
+    setLocation(""); setSessionDate(""); setSessionTime("");
     setFormError("");
     setIsHostSessionOpen(true);
   };
@@ -180,18 +175,13 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
       setCourseSubject(match[1]);
       setCourseNumber(match[2]);
       setProfessorLastName(match[3]);
-    } else {
-      setCourseSubject(session.subject.substring(0,3));
-      setCourseNumber("");
-      setProfessorLastName(session.subject);
     }
     
+    setCourseFullTitle(session.courseName || "");
     setLocation(session.location || "");
-    
     const { dateVal, timeVal } = parseSessionTime(session.time);
     setSessionDate(dateVal);
     setSessionTime(timeVal);
-    
     setIsHostSessionOpen(true);
   };
 
@@ -204,14 +194,20 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
       const formattedSubject = `${courseSubject.toUpperCase()} ${courseNumber} - Prof. ${professorLastName}`;
       const displayTime = `${new Date(sessionDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${sessionTime}`;
 
+      const payload = {
+        subject: formattedSubject,
+        courseName: courseFullTitle, // ADDED
+        location,
+        time: displayTime,
+        userId: user.id
+      };
+
       if (editingSession) {
-        await updateSession(editingSession._id, {
-          subject: formattedSubject, location, time: displayTime, userId: user.id
-        });
+        await updateSession(editingSession._id, payload);
       } else {
         await createSession({
-          subject: formattedSubject, location, time: displayTime,
-          hostName: `${user.firstName} ${user.lastName}`, userId: user.id,
+          ...payload,
+          hostName: `${user.firstName} ${user.lastName}`
         });
       }
 
@@ -253,50 +249,45 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
 
         <section className="grid gap-6 lg:grid-cols-[0.85fr_1.45fr]">
           
-          {/* LEFT: YOUR SCHEDULE */}
+          {/* YOUR SCHEDULE */}
           <div className="rounded-[1.75rem] border border-[#e6dfd0] bg-white p-6 shadow-sm">
             <h2 className="font-serif text-3xl font-semibold text-[#201c15] mb-6">Your Schedule</h2>
             <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
               {mySchedule.map(s => (
                 <div key={s._id} className="p-4 rounded-2xl bg-[#f8f2e7] border border-[#efe8da] group">
                   <div className="flex justify-between items-start">
-                    <h3 className="font-bold cursor-pointer hover:underline text-[#201c15]" onClick={() => setViewingParticipants(s)}>{s.subject}</h3>
-                    
+                    <div onClick={() => setViewingParticipants(s)} className="cursor-pointer">
+                      <h3 className="font-bold text-[#201c15] hover:underline">{s.subject}</h3>
+                      {s.courseName && <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">{s.courseName}</p>}
+                    </div>
                     <div className="flex items-center gap-2">
                       {!s.isJoined && (
-                        <button onClick={(e) => { e.stopPropagation(); openEditModal(s); }} className="text-[#a49d8c] hover:text-[#5a5a40] transition-colors" title="Edit Session">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
-                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); openEditModal(s); }} className="text-[#a49d8c] hover:text-[#5a5a40] transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg></button>
                       )}
                       <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${s.isJoined ? "bg-blue-100 text-blue-700" : "bg-white/50 text-[#7d765f]"}`}>{s.isJoined ? "Joined" : "Host"}</span>
                     </div>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">{s.time}</p>
                   <p className="text-[10px] text-[#7d765f] mt-1 italic font-medium">📍 {s.location}</p>
-                  
-                  {s.isJoined && (
-                    <button onClick={() => handleLeaveSession(s)} className="mt-3 w-full py-1.5 rounded-xl border border-red-200 text-red-500 text-[10px] font-bold uppercase hover:bg-red-50 transition-colors">Leave Group</button>
-                  )}
-                  {!s.isJoined && (
-                    <button onClick={() => handleDeleteSession(s)} className="mt-3 w-full py-1.5 rounded-xl border border-red-300 text-red-600 text-[10px] font-bold uppercase hover:bg-red-50 transition-colors">Delete Session</button>
-                  )}
+                  <button onClick={() => s.isJoined ? handleLeaveSession(s) : handleDeleteSession(s)} className={`mt-3 w-full py-1.5 rounded-xl border text-[10px] font-bold uppercase transition-colors ${s.isJoined ? "border-red-200 text-red-500 hover:bg-red-50" : "border-red-300 text-red-600 hover:bg-red-50"}`}>{s.isJoined ? "Leave Group" : "Delete Session"}</button>
                 </div>
               ))}
               {mySchedule.length === 0 && <p className="text-sm text-gray-400 italic">Nothing scheduled yet.</p>}
             </div>
           </div>
 
-          {/* RIGHT: JOIN A SESSION */}
+          {/* JOIN A SESSION */}
           <div className="rounded-[1.75rem] border border-[#e6dfd0] bg-white p-6 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
               <h2 className="font-serif text-3xl font-semibold text-[#201c15]">Join a Session</h2>
-              <input type="search" value={sessionSearch} onChange={(e) => setSessionSearch(e.target.value)} placeholder="Search subjects, host, or location..." className="w-full max-w-xs rounded-full border border-[#d6cfbf] bg-[#fcfaf4] px-4 py-2.5 text-sm outline-none focus:border-[#5a5a40]" />
+              <input type="search" value={sessionSearch} onChange={(e) => setSessionSearch(e.target.value)} placeholder="Search subjects..." className="w-full max-w-xs rounded-full border border-[#d6cfbf] bg-[#fcfaf4] px-4 py-2.5 text-sm outline-none focus:border-[#5a5a40]" />
             </div>
             <div className="grid gap-4 max-h-[600px] overflow-y-auto pr-2">
               {displayedAvailable.map((session) => (
                 <article key={session._id} className="rounded-[1.5rem] border border-[#efe8da] p-5 bg-white flex justify-between items-center hover:shadow-md transition-shadow">
                   <div className="cursor-pointer" onClick={() => setViewingParticipants(session)}>
                     <h3 className="text-xl font-bold text-[#201c15] hover:text-[#3d5a40]">{session.subject}</h3>
+                    {session.courseName && <p className="text-xs text-gray-400 font-bold uppercase mb-1">{session.courseName}</p>}
                     <p className="text-sm text-[#5e584b]">{session.time}</p>
                     <p className="text-sm text-[#4c4638] mt-1 font-medium">📍 {session.location}</p>
                     <p className="text-xs text-[#7d765f] mt-1 font-semibold uppercase tracking-wider">Hosted by {session.hostName}</p>
@@ -305,69 +296,32 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
                 </article>
               ))}
               {isSearching && <p className="text-sm text-gray-400 italic">Searching...</p>}
-              {!isSearching && displayedAvailable.length === 0 && (
-                <p className="text-sm text-gray-400 italic">
-                  {sessionSearch.trim() ? "No sessions matched your search." : "No sessions available right now."}
-                </p>
-              )}
             </div>
           </div>
         </section>
       </div>
 
-      {/* PARTICIPANT MODAL */}
-      {viewingParticipants && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={() => setViewingParticipants(null)}>
-          <div className="w-full max-w-sm rounded-[2.5rem] bg-white p-8 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-serif text-2xl font-bold mb-1">{viewingParticipants.subject}</h2>
-            <p className="text-sm text-gray-400 mb-6 font-medium">Attendees</p>
-            <div className="space-y-4 mb-8">
-              <div className="flex items-center gap-3 p-2 rounded-xl bg-gray-50">
-                <div className="w-8 h-8 rounded-lg bg-[#5a5a40] flex items-center justify-center text-white text-xs font-bold">H</div>
-                <p className="text-sm font-bold">{viewingParticipants.hostName} (Host)</p>
-              </div>
-              {viewingParticipants.participants?.map((p: any) => (
-                <div key={p._id || p} className="flex items-center gap-3 p-2">
-                  <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 text-xs font-bold">P</div>
-                  <p className="text-sm font-medium">{p.firstName} {p.lastName} {p._id === user.id && "(You)"}</p>
-                </div>
-              ))}
-            </div>
-            <button onClick={() => setViewingParticipants(null)} className="w-full py-3 rounded-full bg-gray-900 text-white font-bold text-sm">Close</button>
-          </div>
-        </div>
-      )}
-
       {/* HOST/EDIT MODAL */}
       {isHostSessionOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1f1a12]/55 px-4 backdrop-blur-sm" onClick={() => setIsHostSessionOpen(false)}>
           <div className="w-full max-w-lg rounded-[2.5rem] border border-[#e6dfd0] bg-[#fffdf8] p-8 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-serif text-3xl font-semibold text-[#201c15] mb-6">
-              {editingSession ? "Edit Session" : "Host a Session"}
-            </h2>
-            
-            {formError && (
-              <div className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-600 border border-red-200">
-                {formError}
-              </div>
-            )}
-
+            <h2 className="font-serif text-3xl font-semibold text-[#201c15] mb-6">{editingSession ? "Edit Session" : "Host a Session"}</h2>
             <form className="space-y-4" onSubmit={handleSaveSession}>
               <div className="grid grid-cols-2 gap-4">
-                <input type="text" required value={courseSubject} onChange={(e) => setCourseSubject(e.target.value.toUpperCase().slice(0,3))} placeholder="Subject" className="rounded-xl border p-3 text-sm focus:ring-2 focus:ring-[#5A5A40] outline-none" />
-                <input type="text" required value={courseNumber} onChange={(e) => setCourseNumber(e.target.value.replace(/\D/g, "").slice(0,4))} placeholder="Number" className="rounded-xl border p-3 text-sm focus:ring-2 focus:ring-[#5A5A40] outline-none" />
+                <input type="text" required value={courseSubject} onChange={(e) => setCourseSubject(e.target.value.toUpperCase().slice(0,3))} placeholder="Subject (COP)" className="rounded-xl border p-3 text-sm outline-none" />
+                <input type="text" required value={courseNumber} onChange={(e) => setCourseNumber(e.target.value.replace(/\D/g, "").slice(0,4))} placeholder="Number (4331)" className="rounded-xl border p-3 text-sm outline-none" />
               </div>
-              <input type="text" required value={professorLastName} onChange={(e) => setProfessorLastName(e.target.value)} placeholder="Professor Last Name" className="w-full rounded-xl border p-3 text-sm focus:ring-2 focus:ring-[#5A5A40] outline-none" />
-              <input type="text" required value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location" className="w-full rounded-xl border p-3 text-sm focus:ring-2 focus:ring-[#5A5A40] outline-none" />
               
+              {/* NEW OPTIONAL INPUT */}
+              <input type="text" value={courseFullTitle} onChange={(e) => setCourseFullTitle(e.target.value)} placeholder="Full Course Name (e.g. Biology 1) - Optional" className="w-full rounded-xl border p-3 text-sm outline-none focus:ring-2 focus:ring-[#5A5A40]" />
+              
+              <input type="text" required value={professorLastName} onChange={(e) => setProfessorLastName(e.target.value)} placeholder="Professor Last Name" className="w-full rounded-xl border p-3 text-sm outline-none" />
+              <input type="text" required value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location" className="w-full rounded-xl border p-3 text-sm outline-none" />
               <div className="grid grid-cols-2 gap-4">
                 <input type="date" required value={sessionDate} onChange={(e) => setSessionDate(e.target.value)} className="rounded-xl border p-3 text-sm outline-none" />
                 <input type="time" required value={sessionTime} onChange={(e) => setSessionTime(e.target.value)} className="rounded-xl border p-3 text-sm outline-none" />
               </div>
-              
-              <button type="submit" disabled={isSubmitting} className="w-full rounded-full bg-[#5A5A40] py-3 text-white font-bold hover:bg-[#4a4a34]">
-                {isSubmitting ? "Saving..." : (editingSession ? "Save Changes" : "Host Session")}
-              </button>
+              <button type="submit" disabled={isSubmitting} className="w-full rounded-full bg-[#5A5A40] py-3 text-white font-bold hover:bg-[#4a4a34]">{isSubmitting ? "Saving..." : "Save Session"}</button>
             </form>
           </div>
         </div>

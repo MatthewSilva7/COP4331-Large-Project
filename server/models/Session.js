@@ -6,19 +6,23 @@ const SessionSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
+    // NEW FIELD
+    courseName: {
+        type: String,
+        trim: true
+    },
     location: {
         type: String,
         required: true
     },
     time: {
-        type: String, // Keeping as String so the UI can send "0:00 PM" easily
+        type: String,
         required: true
     },
     hostName: {
         type: String,
         required: true
     },
-    // This links the session to the specific User ID of the person who created it
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'users',
@@ -29,7 +33,7 @@ const SessionSchema = new mongoose.Schema({
         ref: 'users'
     }]
 }, {
-    timestamps: true // This automatically adds 'createdAt' and 'updatedAt' fields
+    timestamps: true
 });
 
 module.exports = mongoose.model('Session', SessionSchema);

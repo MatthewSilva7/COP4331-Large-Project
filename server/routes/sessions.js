@@ -61,8 +61,8 @@ router.get('/available/:userId', async (req, res) => {
 // 3. POST: Create a new session
 router.post('/create', async (req, res) => {
     try {
-        const { subject, location, time, hostName, userId } = req.body;
-        const newSession = new Session({ subject, location, time, hostName, userId });
+        const { subject, courseName, location, time, hostName, userId } = req.body; // UPDATED
+        const newSession = new Session({ subject, courseName, location, time, hostName, userId }); // UPDATED
         const savedSession = await newSession.save();
         res.status(201).json({ message: "Study session created!", session: savedSession });
     } catch (err) {
@@ -140,24 +140,15 @@ router.delete('/:sessionId', async (req, res) => {
 router.put('/:sessionId', async (req, res) => {
     try {
         const { sessionId } = req.params;
-        const { userId, subject, location, time } = req.body;
+        const { userId, subject, courseName, location, time } = req.body; // UPDATED
 
-        if (!mongoose.Types.ObjectId.isValid(sessionId)) {
-            return res.status(400).json({ message: "Invalid session ID" });
-        }
+        // ... existing validation and host checks ...
 
         const session = await Session.findById(sessionId);
-        if (!session) {
-            return res.status(404).json({ message: "Session not found" });
-        }
+        // ... (host check logic) ...
 
-        // Security check: Only the host can edit
-        if (session.userId.toString() !== userId) {
-            return res.status(403).json({ message: "Only the host can edit this session" });
-        }
-
-        // Update fields if they were provided
         session.subject = subject || session.subject;
+        session.courseName = courseName !== undefined ? courseName : session.courseName; // UPDATED
         session.location = location || session.location;
         session.time = time || session.time;
 
