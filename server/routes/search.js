@@ -30,6 +30,7 @@ router.get('/sessions', async (req, res) => {
     const query = {
       $or: [
         { subject: { $regex: pattern, $options: 'i' } },
+        { courseName: { $regex: pattern, $options: 'i' } }, // NEW: Searches the full course title
         { location: { $regex: pattern, $options: 'i' } },
         { hostName: { $regex: pattern, $options: 'i' } }
       ]
