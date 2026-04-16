@@ -7,6 +7,7 @@ import {
   joinSession,
   leaveSession,
   searchSessions,
+  updateSession, // NEW IMPORT
 } from "../services/authService";
 import type { AuthUser, DashboardData, SessionSummary } from "../types/auth";
 
@@ -26,6 +27,7 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
   // Modal States
   const [isHostSessionOpen, setIsHostSessionOpen] = useState(false);
   const [viewingParticipants, setViewingParticipants] = useState<SessionSummary | null>(null);
+  const [editingSession, setEditingSession] = useState<SessionSummary | null>(null); // NEW STATE
   const [isJoiningSessionId, setIsJoiningSessionId] = useState("");
   
   // Form State
@@ -49,7 +51,6 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
         getAvailableSessions(user.id),
       ]);
       setHostedSessions(data.sessions || []);
-      // Filter out sessions where YOU are the host from the "Join" list
       const filteredAvailable = (available || []).filter(s => s.userId !== user.id);
       setAvailableSessions(filteredAvailable);
     } catch (err: any) {
@@ -63,13 +64,11 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
 
   useEffect(() => {
     const trimmedSearch = sessionSearch.trim();
-
     if (!trimmedSearch) {
       setSearchResults([]);
       setIsSearching(false);
       return;
     }
-
     const timeoutId = window.setTimeout(async () => {
       try {
         setIsSearching(true);
@@ -81,7 +80,6 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
         setIsSearching(false);
       }
     }, 300);
-
     return () => window.clearTimeout(timeoutId);
   }, [sessionSearch, user.id]);
 
@@ -99,12 +97,8 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
     try {
       await joinSession({ sessionId: session._id, userId: user.id });
       const joinedWithMe = { 
-        ...session, 
-        isJoined: true,
-        participants: [
-          ...(session.participants || []), 
-          { firstName: user.firstName, lastName: user.lastName, _id: user.id }
-        ]
+        ...session, isJoined: true,
+        participants: [...(session.participants || []), { firstName: user.firstName, lastName: user.lastName, _id: user.id }]
       };
       setAvailableSessions(prev => prev.filter(s => s._id !== session._id));
       setJoinedSessions(prev => [...prev, joinedWithMe]);
@@ -136,22 +130,69 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
     }
   };
 
-  const handleCreateSession = async (e: React.FormEvent) => {
+  // NEW: Open modal in "Create" mode
+  const openCreateModal = () => {
+    setEditingSession(null);
+    setCourseSubject(""); setCourseNumber(""); setProfessorLastName(""); setLocation(""); setSessionDate(""); setSessionTime("");
+    setFormError("");
+    setIsHostSessionOpen(true);
+  };
+
+  // NEW: Open modal in "Edit" mode and pre-fill data
+  const openEditModal = (session: SessionSummary) => {
+    setEditingSession(session);
+    setFormError("");
+    
+    // Parse the subject back into parts
+    const match = session.subject.match(/^([a-zA-Z]+)\s+(\d+)\s+-\s+Prof\.\s+(.*)$/i);
+    if (match) {
+      setCourseSubject(match[1]);
+      setCourseNumber(match[2]);
+      setProfessorLastName(match[3]);
+    } else {
+      setCourseSubject(session.subject.substring(0,3));
+      setCourseNumber("");
+      setProfessorLastName(session.subject);
+    }
+    
+    setLocation(session.location || "");
+    // Clear date/time to let them pick a new one, or leave blank to keep original
+    setSessionDate("");
+    setSessionTime("");
+    setIsHostSessionOpen(true);
+  };
+
+  // UPDATED: Save handles both Create and Update
+  const handleSaveSession = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setFormError("");
+
     try {
       const formattedSubject = `${courseSubject.toUpperCase()} ${courseNumber} - Prof. ${professorLastName}`;
-      const displayTime = `${new Date(sessionDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${sessionTime}`;
-      await createSession({
-        subject: formattedSubject, location, time: displayTime,
-        hostName: `${user.firstName} ${user.lastName}`, userId: user.id,
-      });
+      
+      // If date/time are provided, format them. If blank (and editing), keep the old time.
+      let displayTime = editingSession?.time || ""; 
+      if (sessionDate && sessionTime) {
+        displayTime = `${new Date(sessionDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${sessionTime}`;
+      }
+
+      if (editingSession) {
+        await updateSession(editingSession._id, {
+          subject: formattedSubject, location, time: displayTime, userId: user.id
+        });
+      } else {
+        await createSession({
+          subject: formattedSubject, location, time: displayTime,
+          hostName: `${user.firstName} ${user.lastName}`, userId: user.id,
+        });
+      }
+
       setIsHostSessionOpen(false);
-      setCourseSubject(""); setCourseNumber(""); setProfessorLastName(""); setLocation("");
+      setEditingSession(null);
       await loadDashboard(false);
     } catch (err: any) {
-      setFormError(err.message || "Could not create session.");
+      setFormError(err.message || "Could not save session.");
     } finally {
       setIsSubmitting(false);
     }
@@ -169,7 +210,7 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#6d654f]">Study Buddy Dashboard</p>
               <h1 className="mt-3 font-serif text-5xl font-semibold text-[#201c15]">Welcome back, {user.firstName}.</h1>
-              <button onClick={() => setIsHostSessionOpen(true)} className="mt-8 rounded-full bg-[#3d5a40] px-8 py-3 text-sm font-bold text-white shadow-md hover:bg-[#314934] transition-all transform active:scale-95">Host a Session</button>
+              <button onClick={openCreateModal} className="mt-8 rounded-full bg-[#3d5a40] px-8 py-3 text-sm font-bold text-white shadow-md hover:bg-[#314934] transition-all transform active:scale-95">Host a Session</button>
             </div>
             <aside className="bg-white/70 p-6 rounded-3xl border border-white/60 backdrop-blur w-64 shadow-sm text-center">
               <p className="text-xs font-bold uppercase tracking-widest text-[#7a735c] mb-4">Account</p>
@@ -177,15 +218,7 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
                 <div className="w-12 h-12 rounded-xl bg-[#5a5a40] flex items-center justify-center text-white font-bold text-xl">{user.firstName[0]}</div>
                 <h2 className="font-bold text-[#201c15]">{user.firstName} {user.lastName}</h2>
               </div>
-              
-              {/* RESTORED: Profile Button */}
-              <button 
-                onClick={onOpenProfile} 
-                className="w-full rounded-full border border-[#8a826b] px-4 py-2.5 text-xs font-bold transition hover:bg-[#f7f2e8] mb-3"
-              >
-                Open profile page
-              </button>
-
+              <button onClick={onOpenProfile} className="w-full rounded-full border border-[#8a826b] px-4 py-2.5 text-xs font-bold transition hover:bg-[#f7f2e8] mb-3">Open profile page</button>
               <button onClick={onLogout} className="w-full rounded-full bg-red-50 py-2.5 text-xs font-bold text-red-600 hover:bg-red-100 transition-colors">Log Out</button>
             </aside>
           </div>
@@ -201,10 +234,20 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
                 <div key={s._id} className="p-4 rounded-2xl bg-[#f8f2e7] border border-[#efe8da] group">
                   <div className="flex justify-between items-start">
                     <h3 className="font-bold cursor-pointer hover:underline text-[#201c15]" onClick={() => setViewingParticipants(s)}>{s.subject}</h3>
-                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${s.isJoined ? "bg-blue-100 text-blue-700" : "bg-white/50 text-[#7d765f]"}`}>{s.isJoined ? "Joined" : "Host"}</span>
+                    
+                    <div className="flex items-center gap-2">
+                      {/* NEW: Edit Pencil Icon */}
+                      {!s.isJoined && (
+                        <button onClick={(e) => { e.stopPropagation(); openEditModal(s); }} className="text-[#a49d8c] hover:text-[#5a5a40] transition-colors" title="Edit Session">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                        </button>
+                      )}
+                      <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${s.isJoined ? "bg-blue-100 text-blue-700" : "bg-white/50 text-[#7d765f]"}`}>{s.isJoined ? "Joined" : "Host"}</span>
+                    </div>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">{s.time}</p>
                   <p className="text-[10px] text-[#7d765f] mt-1 italic font-medium">📍 {s.location}</p>
+                  
                   {s.isJoined && (
                     <button onClick={() => handleLeaveSession(s)} className="mt-3 w-full py-1.5 rounded-xl border border-red-200 text-red-500 text-[10px] font-bold uppercase hover:bg-red-50 transition-colors">Leave Group</button>
                   )}
@@ -269,23 +312,43 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
         </div>
       )}
 
-      {/* HOST MODAL */}
+      {/* HOST/EDIT MODAL */}
       {isHostSessionOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1f1a12]/55 px-4 backdrop-blur-sm" onClick={() => setIsHostSessionOpen(false)}>
           <div className="w-full max-w-lg rounded-[2.5rem] border border-[#e6dfd0] bg-[#fffdf8] p-8 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-serif text-3xl font-semibold text-[#201c15] mb-6">Host a Session</h2>
-            <form className="space-y-4" onSubmit={handleCreateSession}>
+            {/* Dynamic Title */}
+            <h2 className="font-serif text-3xl font-semibold text-[#201c15] mb-6">
+              {editingSession ? "Edit Session" : "Host a Session"}
+            </h2>
+            
+            {formError && (
+              <div className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-600 border border-red-200">
+                {formError}
+              </div>
+            )}
+
+            <form className="space-y-4" onSubmit={handleSaveSession}>
               <div className="grid grid-cols-2 gap-4">
                 <input type="text" required value={courseSubject} onChange={(e) => setCourseSubject(e.target.value.toUpperCase().slice(0,3))} placeholder="Subject" className="rounded-xl border p-3 text-sm focus:ring-2 focus:ring-[#5A5A40] outline-none" />
                 <input type="text" required value={courseNumber} onChange={(e) => setCourseNumber(e.target.value.replace(/\D/g, "").slice(0,4))} placeholder="Number" className="rounded-xl border p-3 text-sm focus:ring-2 focus:ring-[#5A5A40] outline-none" />
               </div>
               <input type="text" required value={professorLastName} onChange={(e) => setProfessorLastName(e.target.value)} placeholder="Professor Last Name" className="w-full rounded-xl border p-3 text-sm focus:ring-2 focus:ring-[#5A5A40] outline-none" />
               <input type="text" required value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location" className="w-full rounded-xl border p-3 text-sm focus:ring-2 focus:ring-[#5A5A40] outline-none" />
+              
               <div className="grid grid-cols-2 gap-4">
-                <input type="date" required value={sessionDate} onChange={(e) => setSessionDate(e.target.value)} className="rounded-xl border p-3 text-sm outline-none" />
-                <input type="time" required value={sessionTime} onChange={(e) => setSessionTime(e.target.value)} className="rounded-xl border p-3 text-sm outline-none" />
+                <input type="date" required={!editingSession} value={sessionDate} onChange={(e) => setSessionDate(e.target.value)} className="rounded-xl border p-3 text-sm outline-none" />
+                <input type="time" required={!editingSession} value={sessionTime} onChange={(e) => setSessionTime(e.target.value)} className="rounded-xl border p-3 text-sm outline-none" />
               </div>
-              <button type="submit" disabled={isSubmitting} className="w-full rounded-full bg-[#5A5A40] py-3 text-white font-bold hover:bg-[#4a4a34]">{isSubmitting ? "Creating..." : "Host Session"}</button>
+              
+              {editingSession && (
+                <p className="text-xs text-gray-500 italic mt-1 px-1">
+                  Leave date and time blank to keep: <span className="font-semibold">{editingSession.time}</span>
+                </p>
+              )}
+
+              <button type="submit" disabled={isSubmitting} className="w-full rounded-full bg-[#5A5A40] py-3 text-white font-bold hover:bg-[#4a4a34]">
+                {isSubmitting ? "Saving..." : (editingSession ? "Save Changes" : "Host Session")}
+              </button>
             </form>
           </div>
         </div>

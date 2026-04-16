@@ -136,4 +136,36 @@ router.delete('/:sessionId', async (req, res) => {
     }
 });
 
+// 7. PUT: Update a session (host only)
+router.put('/:sessionId', async (req, res) => {
+    try {
+        const { sessionId } = req.params;
+        const { userId, subject, location, time } = req.body;
+
+        if (!mongoose.Types.ObjectId.isValid(sessionId)) {
+            return res.status(400).json({ message: "Invalid session ID" });
+        }
+
+        const session = await Session.findById(sessionId);
+        if (!session) {
+            return res.status(404).json({ message: "Session not found" });
+        }
+
+        // Security check: Only the host can edit
+        if (session.userId.toString() !== userId) {
+            return res.status(403).json({ message: "Only the host can edit this session" });
+        }
+
+        // Update fields if they were provided
+        session.subject = subject || session.subject;
+        session.location = location || session.location;
+        session.time = time || session.time;
+
+        const updatedSession = await session.save();
+        res.status(200).json({ message: "Session updated", session: updatedSession });
+    } catch (err) {
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
 module.exports = router;

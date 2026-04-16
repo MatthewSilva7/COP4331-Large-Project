@@ -219,6 +219,28 @@ export const createSession = async (
   return data;
 };
 
+export const updateSession = async (
+  sessionId: string,
+  payload: Partial<CreateSessionPayload>,
+): Promise<{ message: string; session: SessionSummary }> => {
+  const response = await fetch(`${SESSION_API_BASE_URL}/sessions/${sessionId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await parseApiResponse<{ message: string; session: SessionSummary }>(
+    response,
+    "The server returned an unexpected response while updating the session.",
+  );
+
+  if (!response.ok) {
+    throw new Error(data.message || "Could not update session");
+  }
+
+  return data;
+};
+
 export const getAvailableSessions = async (userId: string): Promise<SessionSummary[]> => {
   const response = await fetch(`${SESSION_API_BASE_URL}/sessions/available/${userId}`, {
     method: "GET",
