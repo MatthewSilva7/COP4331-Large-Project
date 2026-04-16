@@ -17,11 +17,10 @@ interface DashboardPageProps {
   onLogout: () => void;
 }
 
-// NEW HELPER: Converts "Apr 13, 14:30" back to "2026-04-13" and "14:30" for the HTML inputs
 const parseSessionTime = (timeString: string) => {
   try {
     const [monthDay, timeStr] = timeString.split(", ");
-    const currentYear = new Date().getFullYear(); // Assumes current year for the UI
+    const currentYear = new Date().getFullYear(); 
     const d = new Date(`${monthDay}, ${currentYear}`);
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -65,7 +64,12 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
         getDashboardData(user.id),
         getAvailableSessions(user.id),
       ]);
-      setHostedSessions(data.sessions || []);
+      
+      // FIX: Properly separate hosted vs. joined sessions on initial load
+      const allMySessions = data.sessions || [];
+      setHostedSessions(allMySessions.filter(s => !s.isJoined));
+      setJoinedSessions(allMySessions.filter(s => s.isJoined));
+
       const filteredAvailable = (available || []).filter(s => s.userId !== user.id);
       setAvailableSessions(filteredAvailable);
     } catch (err: any) {
@@ -127,6 +131,7 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
   const handleLeaveSession = async (session: SessionSummary) => {
     try {
       await leaveSession({ sessionId: session._id, userId: user.id });
+      // Because `joinedSessions` is now populated correctly on load, this filter will work!
       setJoinedSessions(prev => prev.filter(s => s._id !== session._id));
       setAvailableSessions(prev => [...prev, { ...session, isJoined: false }]);
       if (viewingParticipants?._id === session._id) setViewingParticipants(null);
@@ -152,7 +157,6 @@ export default function DashboardPage({ user, onOpenProfile, onLogout }: Dashboa
     setIsHostSessionOpen(true);
   };
 
-  // UPDATED: Now parses and fully pre-fills the Date and Time fields
   const openEditModal = (session: SessionSummary) => {
     setEditingSession(session);
     setFormError("");
