@@ -110,6 +110,33 @@ class SessionApi {
     throw SessionApiException(body['message']?.toString() ?? 'Could not create session');
   }
 
+  Future<SessionSummary> updateSession({
+    required String sessionId,
+    required String subject,
+    required String location,
+    required String time,
+    required String userId,
+  }) async {
+    final res = await _client.put(
+      _uri('/sessions/$sessionId'),
+      headers: ApiHeaders.json(),
+      body: jsonEncode({
+        'subject': subject,
+        'location': location,
+        'time': time,
+        'userId': userId,
+      }),
+    );
+    final body = _decode(res);
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      final s = body['session'];
+      if (s is Map) {
+        return SessionSummary.fromJson(Map<String, dynamic>.from(s));
+      }
+    }
+    throw SessionApiException(body['message']?.toString() ?? 'Could not update session');
+  }
+
   Future<void> joinSession({
     required String sessionId,
     required String userId,
