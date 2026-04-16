@@ -451,6 +451,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     var sessionDate = '';
     var sessionTime = '';
     var submitting = false;
+    String? formError;
+    String? subjectError;
+    String? numberError;
+    String? courseNameError;
+    String? professorError;
+    String? locationError;
+    String? dateError;
+    String? timeError;
 
     if (editing != null) {
       final parsed = _parseSubjectParts(editing.subject);
@@ -534,6 +542,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 fontSize: 11,
                                 color: Color(0xFF8A826B),
                               ),
+                              errorText: subjectError,
                             ),
                             onChanged: (v) {
                               final u = v.toUpperCase();
@@ -542,6 +551,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   text: u,
                                   selection: TextSelection.collapsed(offset: u.length),
                                 );
+                              }
+                              if (subjectError != null || formError != null) {
+                                setLocal(() {
+                                  subjectError = null;
+                                  formError = null;
+                                });
                               }
                             },
                           ),
@@ -563,7 +578,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 fontSize: 11,
                                 color: Color(0xFF8A826B),
                               ),
+                              errorText: numberError,
                             ),
+                            onChanged: (_) {
+                              if (numberError != null || formError != null) {
+                                setLocal(() {
+                                  numberError = null;
+                                  formError = null;
+                                });
+                              }
+                            },
                           ),
                         ),
                       ],
@@ -572,9 +596,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     TextField(
                       controller: courseFullTitle,
                       decoration: _fieldDecoration(
-                        'Full course name (optional)',
+                        'Full course name',
                         hint: 'e.g. Biology 1',
-                      ),
+                      ).copyWith(errorText: courseNameError),
+                      onChanged: (_) {
+                        if (courseNameError != null || formError != null) {
+                          setLocal(() {
+                            courseNameError = null;
+                            formError = null;
+                          });
+                        }
+                      },
                     ),
                     const SizedBox(height: 12),
                     TextField(
@@ -582,7 +614,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       decoration: _fieldDecoration(
                         'Professor last name',
                         hint: 'Zhu',
-                      ),
+                      ).copyWith(errorText: professorError),
+                      onChanged: (_) {
+                        if (professorError != null || formError != null) {
+                          setLocal(() {
+                            professorError = null;
+                            formError = null;
+                          });
+                        }
+                      },
                     ),
                     const SizedBox(height: 12),
                     TextField(
@@ -590,7 +630,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       decoration: _fieldDecoration(
                         'Location',
                         hint: 'John T. Washington 205',
-                      ),
+                      ).copyWith(errorText: locationError),
+                      onChanged: (_) {
+                        if (locationError != null || formError != null) {
+                          setLocal(() {
+                            locationError = null;
+                            formError = null;
+                          });
+                        }
+                      },
                     ),
                     const SizedBox(height: 14),
                     Row(
@@ -604,7 +652,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               hint: 'Select date',
                               suffixIcon:
                                   const Icon(Icons.calendar_today_outlined, size: 18),
-                            ),
+                            ).copyWith(errorText: dateError),
                             onTap: () async {
                               final now = DateTime.now();
                               DateTime initialDate = now;
@@ -622,7 +670,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 sessionDate =
                                     '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
                                 dateDisplay.text = sessionDate;
-                                setLocal(() {});
+                                setLocal(() {
+                                  dateError = null;
+                                  formError = null;
+                                });
                               }
                             },
                           ),
@@ -636,7 +687,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               'Time',
                               hint: 'Select time',
                               suffixIcon: const Icon(Icons.access_time, size: 18),
-                            ),
+                            ).copyWith(errorText: timeError),
                             onTap: () async {
                               final initial = sessionTime.isNotEmpty
                                   ? () {
@@ -656,7 +707,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 sessionTime =
                                     '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
                                 timeDisplay.text = sessionTime;
-                                setLocal(() {});
+                                setLocal(() {
+                                  timeError = null;
+                                  formError = null;
+                                });
                               }
                             },
                           ),
@@ -664,6 +718,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ],
                     ),
                     const SizedBox(height: 4),
+                    if (formError != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        formError!,
+                        style: const TextStyle(
+                          color: Colors.red,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -690,12 +755,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         onPressed: submitting
                             ? null
                             : () async {
-                                if (courseSubject.text.length != 3 ||
-                                    courseNumber.text.length != 4 ||
-                                    professor.text.isEmpty ||
-                                    location.text.isEmpty ||
-                                    sessionDate.isEmpty ||
-                                    sessionTime.isEmpty) {
+                                final subjOk = courseSubject.text.trim().length == 3;
+                                final numOk = courseNumber.text.trim().length == 4;
+                                final nameOk = courseFullTitle.text.trim().isNotEmpty;
+                                final profOk = professor.text.trim().isNotEmpty;
+                                final locOk = location.text.trim().isNotEmpty;
+                                final dateOk = sessionDate.isNotEmpty;
+                                final timeOk = sessionTime.isNotEmpty;
+
+                                if (!(subjOk && numOk && nameOk && profOk && locOk && dateOk && timeOk)) {
+                                  setLocal(() {
+                                    subjectError = subjOk ? null : 'Required';
+                                    numberError = numOk ? null : 'Required';
+                                    courseNameError = nameOk ? null : 'Required';
+                                    professorError = profOk ? null : 'Required';
+                                    locationError = locOk ? null : 'Required';
+                                    dateError = dateOk ? null : 'Required';
+                                    timeError = timeOk ? null : 'Required';
+                                    formError = 'Please fill in all required fields.';
+                                  });
                                   return;
                                 }
                                 setLocal(() => submitting = true);
