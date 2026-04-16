@@ -84,6 +84,7 @@ class SessionApi {
 
   Future<SessionSummary> createSession({
     required String subject,
+    String? courseName,
     required String location,
     required String time,
     required String hostName,
@@ -94,6 +95,7 @@ class SessionApi {
       headers: ApiHeaders.json(),
       body: jsonEncode({
         'subject': subject,
+        'courseName': courseName,
         'location': location,
         'time': time,
         'hostName': hostName,
@@ -113,6 +115,7 @@ class SessionApi {
   Future<SessionSummary> updateSession({
     required String sessionId,
     required String subject,
+    String? courseName,
     required String location,
     required String time,
     required String userId,
@@ -122,6 +125,7 @@ class SessionApi {
       headers: ApiHeaders.json(),
       body: jsonEncode({
         'subject': subject,
+        'courseName': courseName,
         'location': location,
         'time': time,
         'userId': userId,
