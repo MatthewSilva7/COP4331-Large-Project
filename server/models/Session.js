@@ -23,8 +23,12 @@ const SessionSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'users',
         required: true
-    }
-}, { 
+    },
+    joinedUserIds: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'users'
+    }]
+}, {
     timestamps: true // This automatically adds 'createdAt' and 'updatedAt' fields
 });
 
